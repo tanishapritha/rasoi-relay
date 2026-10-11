@@ -8,10 +8,10 @@ Rasoi Relay focuses on persistent cooking context across multiple dishes, interr
 
 ## Current implementation status
 
-- **Implemented in repository:** SQLAlchemy domain models; initial Alembic migration; deterministic meal creation, dependency-aware next action, step completion, interruption recovery, plan revision, preference storage, absolute timer deadlines and bounded household timing estimates; FastAPI endpoints; official Python MCP SDK tool adapter; React dashboard; real browser MCP client calls for recovery and interruption; scoped demo load/reset; initial unit tests; CI and deployment scaffolding.
+- **Implemented in repository:** SQLAlchemy domain models; initial Alembic migration; deterministic meal creation, dependency-aware next action, step completion, interruption recovery, plan revision, preference storage, absolute timer deadlines and bounded household timing estimates; FastAPI endpoints; official Python MCP SDK tool adapter; React dashboard; real browser MCP client calls for recovery, optional browser speech recognition/synthesis; scoped demo load/reset; initial unit tests; CI and deployment scaffolding.
 - **Not yet verified:** dependency installation, lockfile generation, local test execution, Alembic against PostgreSQL, browser build, MCP Inspector, deployed endpoints and latency.
 - **Not production-ready:** real authentication and MCP principal propagation are not implemented. Production mode rejects user API calls and MCP tools rather than accepting the demo identity. Do not deploy publicly for normal use until this is completed.
-- **Not implemented yet:** hosted AI provider integration, richer intent handling, browser voice, frontend end-to-end tests and verified deployment.
+- **Not implemented yet:** hosted AI provider integration, richer intent handling, frontend end-to-end tests and verified deployment. Browser speech support is implemented as an optional progressive enhancement but remains untested.
 
 See `docs/build-log.md` for the current verification status.
 
