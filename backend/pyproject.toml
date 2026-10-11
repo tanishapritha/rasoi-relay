@@ -17,6 +17,8 @@ dependencies = [
   "mcp>=1.29,<2.0",
   "ask-sdk-core>=1.19,<2.0",
   "ask-sdk-webservice-support>=1.0,<2.0",
+  # Upstream PyPI oscrypto releases do not include the OpenSSL 3 version-parser fix.
+  "oscrypto @ git+https://github.com/wbond/oscrypto.git@d5f3437ed24257895ae1edd9e503cfb352e635a8",
 ]
 
 [project.optional-dependencies]
