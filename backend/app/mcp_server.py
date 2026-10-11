@@ -115,6 +115,3 @@ def start_cooking_timer(meal_id: str, step_id: str, duration_minutes: int | None
         return start_timer(db, get_meal(db, meal_id, _user_id()), step_id, duration_minutes,
                            physical_condition_confirmed)
 
-
-if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
