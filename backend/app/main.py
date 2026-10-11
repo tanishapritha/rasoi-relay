@@ -27,7 +27,8 @@ from app.services.cooking import (
 settings = get_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger("rasoi.request")
-mcp_asgi_app = mcp.streamable_http_app(streamable_http_path="/", json_response=True, stateless_http=True)
+mcp.settings.streamable_http_path = "/"
+mcp_asgi_app = mcp.streamable_http_app()
 
 
 @contextlib.asynccontextmanager
