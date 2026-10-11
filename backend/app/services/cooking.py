@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
-    CookingEvent, CookingStep, CookingTimer, Dish, HouseholdPreference, Meal,
-    MealPlanRevision, MealStatus, StepDependency, StepStatus, TimerStatus,
+    CookingEvent, CookingStep, Dish, HouseholdPreference, Meal,
+    MealPlanRevision, MealStatus, StepDependency, StepStatus,
 )
 from app.schemas import MealCreate
 
@@ -115,7 +114,8 @@ def get_next_action(db: Session, meal: Meal) -> dict[str, Any]:
             "reason": "eligible_step", "clarification_required": False}
 
 
-def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | None = None) -> dict[str, Any]:
+def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | None = None,
+                  physical_condition_confirmed: bool = False) -> dict[str, Any]:
     if idempotency_key:
         existing = db.scalar(select(CookingEvent).where(CookingEvent.idempotency_key == idempotency_key))
         if existing:
@@ -127,6 +127,8 @@ def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | 
         raise HTTPException(status_code=404, detail={"code": "STEP_NOT_FOUND", "message": "Step not found in this meal."})
     if step.status == StepStatus.COMPLETED:
         return {"status": "already_completed", "meal_id": meal.id, "step_id": step.id}
+    if step.requires_physical_confirmation and not physical_condition_confirmed:
+        raise HTTPException(status_code=409, detail={"code": "PHYSICAL_CONFIRMATION_REQUIRED", "message": "Confirm the current physical conditions before completing this step."})
     if not _is_ready(db, step):
         raise HTTPException(status_code=409, detail={"code": "STEP_BLOCKED", "message": "Prerequisite steps are not complete."})
     step.status = StepStatus.COMPLETED
@@ -134,7 +136,8 @@ def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | 
     for candidate in db.scalars(select(CookingStep).join(Dish).where(Dish.meal_id == meal.id)):
         if candidate.status == StepStatus.PENDING and _is_ready(db, candidate):
             candidate.status = StepStatus.READY
-    _event(db, meal, "step_completed", {"step_id": step.id, "title": step.title},
+    _event(db, meal, "step_completed", {"step_id": step.id, "title": step.title,
+                                      "physical_condition_confirmed": physical_condition_confirmed},
            confirmed=True, key=idempotency_key)
     db.commit()
     return {"status": "completed", "meal_id": meal.id, "step_id": step.id,
