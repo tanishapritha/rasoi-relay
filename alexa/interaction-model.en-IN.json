@@ -1,0 +1,122 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "rasoi relay",
+      "intents": [
+        {
+          "name": "MealStatusIntent",
+          "slots": [],
+          "samples": [
+            "how is dinner going",
+            "what is the cooking status",
+            "how much cooking is left",
+            "what is the status of my meal"
+          ]
+        },
+        {
+          "name": "NextActionIntent",
+          "slots": [],
+          "samples": [
+            "what should I do next",
+            "what is the next cooking step",
+            "tell me the next step",
+            "what do I do now"
+          ]
+        },
+        {
+          "name": "ResumeMealIntent",
+          "slots": [],
+          "samples": [
+            "help me resume cooking",
+            "resume my meal",
+            "continue cooking",
+            "I am back in the kitchen"
+          ]
+        },
+        {
+          "name": "ReportInterruptionIntent",
+          "slots": [],
+          "samples": [
+            "I had to leave the kitchen",
+            "pause cooking because I am leaving",
+            "I need to step away",
+            "I left the kitchen"
+          ]
+        },
+        {
+          "name": "StartTimerIntent",
+          "slots": [
+            {
+              "name": "duration_minutes",
+              "type": "AMAZON.NUMBER"
+            }
+          ],
+          "samples": [
+            "set a timer for {duration_minutes} minutes",
+            "start a {duration_minutes} minute cooking timer",
+            "remind me in {duration_minutes} minutes"
+          ]
+        },
+        {
+          "name": "CompleteStepIntent",
+          "slots": [],
+          "samples": [
+            "I finished that step",
+            "I completed the step",
+            "that step is done",
+            "I have finished the current step"
+          ]
+        },
+        {
+          "name": "ConfirmStoveStateIntent",
+          "slots": [
+            {
+              "name": "stove_state",
+              "type": "STOVE_STATE"
+            }
+          ],
+          "samples": [
+            "the stove is {stove_state}",
+            "I checked and the stove is {stove_state}",
+            "I confirm the stove is {stove_state}"
+          ]
+        },
+        {
+          "name": "AMAZON.YesIntent"
+        },
+        {
+          "name": "AMAZON.NoIntent"
+        },
+        {
+          "name": "AMAZON.HelpIntent"
+        },
+        {
+          "name": "AMAZON.StopIntent"
+        },
+        {
+          "name": "AMAZON.CancelIntent"
+        },
+        {
+          "name": "AMAZON.FallbackIntent"
+        }
+      ],
+      "types": [
+        {
+          "name": "STOVE_STATE",
+          "values": [
+            {
+              "name": {
+                "value": "on"
+              }
+            },
+            {
+              "name": {
+                "value": "off"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
