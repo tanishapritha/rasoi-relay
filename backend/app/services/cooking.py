@@ -97,7 +97,7 @@ def get_meal(db: Session, meal_id: str, user_id: str | None = None) -> Meal:
 
 def _is_ready(db: Session, step: CookingStep) -> bool:
     dependencies = list(db.scalars(select(StepDependency).where(StepDependency.step_id == step.id)))
-    if step.status == StepStatus.COMPLETED:
+    if step.status in (StepStatus.COMPLETED, StepStatus.BLOCKED):
         return False
     if not dependencies:
         return True
