@@ -39,13 +39,13 @@ The endpoint will return HTTP 503 until `ALEXA_SKILL_ID` is configured. Request 
 
 ## First test flow
 
-1. Create or load a demo meal in the Rasoi Relay web app under the same development database.
-2. Enable the skill in the simulator.
-3. Invoke `rasoi relay`.
+1. Enable the skill in the simulator.
+2. Invoke `rasoi relay`.
+3. Say `start a sample meal` to create a sample session owned by the Alexa identity.
 4. Ask `what should I do next` or `how is dinner going`.
 5. Test interruption and recovery. After an interruption, physically check the stove before telling the skill whether it is on or off.
-6. Try a step that requires physical confirmation. The voice integration must refuse to bypass the app's existing confirmation requirement.
-7. Inspect the meal state in the app and backend logs after each state-changing request.
+6. Try a step that requires physical confirmation. The voice integration must not bypass the existing confirmation requirement.
+7. Inspect backend logs and database state after each state-changing request. The web app currently uses a separate development identity, so the Alexa-created meal will not appear in the web UI until account linking is implemented.
 
 ## Known limitations
 
