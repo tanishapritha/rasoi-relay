@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     CookingEvent, CookingStep, CookingTimer, Dish, HouseholdPreference, Meal,
-    MealPlanRevision, MealStatus, StepDependency, StepStatus, TimerStatus,
+    MealPlanRevision, MealStatus, StepDependency, StepStatus, TimerStatus, User,
 )
 from app.schemas import MealCreate
 
@@ -27,6 +27,16 @@ def _meal_query(meal_id: str) -> Any:
     )
 
 
+def _ensure_user(db: Session, user_id: str) -> User:
+    user = db.get(User, user_id)
+    if user is None:
+        display_name = "Demo household" if user_id == "demo-user" else "Household"
+        user = User(id=user_id, display_name=display_name, account_status="active")
+        db.add(user)
+        db.flush()
+    return user
+
+
 def _event(db: Session, meal: Meal, event_type: str, payload: dict[str, Any],
            source: str = "api", confirmed: bool = False, key: str | None = None) -> None:
     db.add(CookingEvent(user_id=meal.user_id, meal_id=meal.id, event_type=event_type,
@@ -35,6 +45,7 @@ def _event(db: Session, meal: Meal, event_type: str, payload: dict[str, Any],
 
 
 def create_meal(db: Session, user_id: str, data: MealCreate, is_demo: bool = False) -> Meal:
+    _ensure_user(db, user_id)
     meal = Meal(user_id=user_id, name=data.name, target_serving_at=data.target_serving_at,
                 status=MealStatus.ACTIVE, is_demo=is_demo)
     db.add(meal)
@@ -221,6 +232,7 @@ def revise_plan(db: Session, meal: Meal, reason: str, delay_minutes: int = 0) ->
 
 
 def save_preference(db: Session, user_id: str, key: str, value: dict[str, Any], locale: str = "en-IN") -> dict[str, Any]:
+    _ensure_user(db, user_id)
     pref = db.scalar(select(HouseholdPreference).where(HouseholdPreference.user_id == user_id,
                                                         HouseholdPreference.key == key))
     if pref is None:
