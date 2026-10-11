@@ -6,7 +6,7 @@
 - Added Python dependency configuration and backend environment template.
 - Added SQLAlchemy models for users, external identities, meals, dishes, steps, dependencies, timers, events, preferences and plan revisions.
 - Added an initial Alembic migration, deterministic cooking services, REST endpoints, MCP tool adapter, demo seed/reset scripts and core service tests.
-- Added a responsive React/Vite dashboard, API client, browser MCP client calls for interruption/recovery, and explicit user confirmation prompts for safety-sensitive step completion and timers.
+- Added a responsive React/Vite dashboard, API client, browser MCP client calls for recovery, optional browser speech recognition/synthesis, and explicit user confirmation prompts for safety-sensitive step completion, timers and resuming after interruption.
 - Added a mounted Streamable HTTP MCP endpoint, persisted timer API/tool, deterministic English/Hinglish intent parsing, a conversation endpoint, cooking issue reporting, and bounded timing estimates that adapt only after three timed completion observations.
 - Added GitHub Actions and Render deployment scaffolding; no production deployment has been attempted.
 - **Not yet executed or verified:** dependency installation, Ruff, pytest, Alembic against PostgreSQL, MCP Inspector, and live database connectivity.
