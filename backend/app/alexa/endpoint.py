@@ -39,10 +39,19 @@ async def alexa_endpoint(request: Request) -> Response:
         envelope = json.loads(body)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise HTTPException(status_code=400, detail={"code": "INVALID_ALEXA_JSON", "message": "Invalid Alexa request."}) from exc
+    if not isinstance(envelope, dict):
+        raise HTTPException(status_code=400, detail={"code": "INVALID_ALEXA_ENVELOPE", "message": "Invalid Alexa request envelope."})
 
-    context_system = envelope.get("context", {}).get("System", {})
+    context = envelope.get("context")
+    context = context if isinstance(context, dict) else {}
+    context_system = context.get("System", {})
+    context_system = context_system if isinstance(context_system, dict) else {}
     context_app_id = context_system.get("application", {}).get("applicationId")
-    session_app_id = envelope.get("session", {}).get("application", {}).get("applicationId")
+    session = envelope.get("session")
+    session = session if isinstance(session, dict) else {}
+    session_application = session.get("application", {})
+    session_application = session_application if isinstance(session_application, dict) else {}
+    session_app_id = session_application.get("applicationId")
     incoming_skill_id = context_app_id or session_app_id
     if not incoming_skill_id:
         raise HTTPException(status_code=400, detail={"code": "ALEXA_APPLICATION_ID_MISSING", "message": "Alexa application id is missing."})
