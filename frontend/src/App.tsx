@@ -31,7 +31,7 @@ export default function App() {
     if (!meal) { setAssistantReply('Load the demo meal first so I can use a real saved cooking state.'); return; }
     if (normalized.includes('back') || normalized.includes('next') || normalized.includes('kya') || normalized.includes('recover')) recoveryMutation.mutate(meal.id);
     else if (normalized.includes('interrupt') || normalized.includes('phone')) interruptionMutation.mutate(meal.id);
-    else setAssistantReply('I can recover your meal or record an interruption in this local demo. Core actions are deterministic; full natural-language AI routing is not connected yet.');
+    else api.conversation(message, meal.id).then((data) => { setAssistantReply(data.response); if (data.result) setToolActivity({ tool: `conversation → ${data.intent} (REST)`, input: { message, meal_id: meal.id }, output: data.result }); }).catch((error: Error) => setAssistantReply(`I couldn't process that request: ${error.message}`));
   };
 
   return <div className="app-shell">
