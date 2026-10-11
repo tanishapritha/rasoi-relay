@@ -58,10 +58,10 @@ def complete_cooking_step(meal_id: str, step_id: str, idempotency_key: str | Non
 
 
 @mcp.tool()
-def report_interruption(meal_id: str, reason: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Record an interruption without assuming unconfirmed steps are complete."""
+def report_interruption(meal_id: str, reason: str) -> dict[str, Any]:
+    """Record an interruption; physical state is left unknown unless confirmed separately by the user."""
     with SessionLocal() as db:
-        return interruption_service(db, get_meal(db, meal_id, _user_id()), reason, details or {}, source="mcp")
+        return interruption_service(db, get_meal(db, meal_id, _user_id()), reason, {}, source="mcp")
 
 
 @mcp.tool()
