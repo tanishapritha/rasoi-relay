@@ -2,10 +2,12 @@ import contextlib
 import logging
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import Response
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -42,7 +44,7 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
                    expose_headers=["Mcp-Session-Id"])
 
 @app.middleware("http")
-async def request_logging(request: Request, call_next):
+async def request_logging(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
     request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
     started = time.perf_counter()
     try:
