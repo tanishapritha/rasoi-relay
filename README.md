@@ -23,7 +23,7 @@ See `docs/build-log.md` for the current verification status.
 - Database: Neon PostgreSQL in hosted environments; isolated SQLite databases are used for fast service unit tests only.
 - Hosting target: Vercel frontend, Render API/MCP, Neon database.
 
-The REST API and MCP adapter call the same application service functions. PostgreSQL is the source of truth. AI output never directly mutates the database or establishes physical facts.
+The Python MCP SDK dependency is constrained to the 1.x line that supports the 2025-11-25 protocol revision; the TypeScript client SDK is likewise constrained to its 1.x line. Actual negotiation still needs verification with MCP Inspector. The REST API and MCP adapter call the same application service functions. PostgreSQL is the source of truth. AI output never directly mutates the database or establishes physical facts.
 
 ## Local setup
 
