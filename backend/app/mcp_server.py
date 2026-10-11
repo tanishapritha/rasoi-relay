@@ -52,10 +52,11 @@ def get_next_action(meal_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def complete_cooking_step(meal_id: str, step_id: str, idempotency_key: str | None = None) -> dict[str, Any]:
-    """Validate and persist completion of an eligible cooking step."""
+def complete_cooking_step(meal_id: str, step_id: str, idempotency_key: str | None = None,
+                          physical_condition_confirmed: bool = False) -> dict[str, Any]:
+    """Validate and persist completion; sensitive steps require explicit physical confirmation."""
     with SessionLocal() as db:
-        return complete_step(db, get_meal(db, meal_id, _user_id()), step_id, idempotency_key)
+        return complete_step(db, get_meal(db, meal_id, _user_id()), step_id, idempotency_key, physical_condition_confirmed)
 
 
 @mcp.tool()
