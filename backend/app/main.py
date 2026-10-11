@@ -3,7 +3,7 @@ import logging
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -180,7 +180,7 @@ def load_demo(db: Session = Depends(get_db), user_id: str = Depends(current_user
         return meal_status(db, get_meal(db, existing.id, user_id))
     data = MealCreate(
         name="Dal, rice & aloo sabzi",
-        target_serving_at=datetime.now(timezone.utc) + timedelta(minutes=60),
+        target_serving_at=datetime.now(UTC) + timedelta(minutes=60),
         dishes=[
             DishCreate(name="Rice", steps=[
                 StepCreate(title="Wash rice", instruction="Rinse rice until the water is clearer.", duration_minutes=3),
