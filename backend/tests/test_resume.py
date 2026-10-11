@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
@@ -17,7 +17,7 @@ def test_resume_requires_user_and_stove_confirmation():
     try:
         with factory() as db:
             meal = create_meal(db, 'resume-user', MealCreate(
-                name='Resume test', target_serving_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                name='Resume test', target_serving_at=datetime.now(UTC) + timedelta(hours=1),
                 dishes=[DishCreate(name='Rice', steps=[StepCreate(title='Wash rice', instruction='Rinse.', duration_minutes=2)])],
             ))
             report_interruption(db, meal, 'phone call', {'stove_state': 'unknown'})
