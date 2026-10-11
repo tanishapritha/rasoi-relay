@@ -17,3 +17,8 @@ The MCP adapter in `backend/app/mcp_server.py` uses the official Python MCP SDK 
 | `start_cooking_timer` | Persist an absolute timer deadline | Yes |
 
 Production authorization is not complete; do not expose MCP publicly until authenticated identity propagation and ownership checks are implemented. MCP Inspector and deployed protocol behavior have not yet been verified.
+
+
+## Physical-state trust boundary
+
+The interruption tool accepts only the meal ID and interruption reason; it does not accept arbitrary physical-state claims. Safety-sensitive completion and timer tools do not expose a boolean that an AI model could set to claim a person checked the stove. Those operations return a confirmation error until the app's explicit user-confirmation flow is used. The app's simulation of a stove state is visibly labelled as demo data.
