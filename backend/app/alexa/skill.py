@@ -456,7 +456,7 @@ class SkillExceptionHandler(AbstractExceptionHandler):
         return True
 
     def handle(self, handler_input: HandlerInput, exception: Exception) -> dict[str, Any]:
-        logger.exception("alexa_skill_handler_failed", exc_info=exception)
+        logger.error("alexa_skill_handler_failed", exc_info=(type(exception), exception, exception.__traceback__))
         return _response(
             handler_input,
             "Something went wrong while checking your cooking session. Your last saved progress has not been intentionally changed by this response. Please check Rasoi Relay before continuing.",
