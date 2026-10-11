@@ -30,6 +30,11 @@ class MealCreate(BaseModel):
         return value
 
 
+class CookingIssueCreate(BaseModel):
+    issue_type: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=1, max_length=1000)
+
+
 class InterruptionCreate(BaseModel):
     reason: str = Field(min_length=1, max_length=240)
     details: dict[str, Any] = Field(default_factory=dict)
