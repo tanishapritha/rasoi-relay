@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.ai.provider import get_intent_provider
+from app.auth.dependencies import current_user
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.session import get_db, engine
@@ -61,12 +62,6 @@ async def request_logging(request: Request, call_next: Callable[[Request], Await
     return response
 
 
-
-def current_user(x_demo_user: str | None = Header(default=None, alias="X-Demo-User")) -> str:
-    # Explicit demo identity only; production authentication must replace this dependency.
-    if settings.app_env == "production":
-        raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED", "message": "Production authentication is not configured."})
-    return x_demo_user or "demo-user"
 
 
 @app.get("/health")
