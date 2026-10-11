@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     ai_provider: str = ""
     ai_api_key: str = ""
     ai_model: str = ""
+    alexa_skill_id: str = ""
     demo_mode: bool = True
     log_level: str = "INFO"
 
