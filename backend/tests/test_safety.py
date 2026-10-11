@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
@@ -17,7 +17,7 @@ def test_sensitive_step_requires_explicit_confirmation():
     try:
         with factory() as db:
             meal = create_meal(db, 'safety-user', MealCreate(
-                name='Safety test', target_serving_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                name='Safety test', target_serving_at=datetime.now(UTC) + timedelta(hours=1),
                 dishes=[DishCreate(name='Rice', steps=[StepCreate(
                     title='Cook rice', instruction='Check the cooking conditions.', duration_minutes=10,
                     requires_physical_confirmation=True,

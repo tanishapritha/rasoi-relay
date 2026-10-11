@@ -3,7 +3,7 @@ import logging
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.ai.provider import get_intent_provider
+from app.alexa.endpoint import router as alexa_router
 from app.auth.dependencies import current_user
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -27,7 +28,8 @@ from app.services.cooking import (
 settings = get_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger("rasoi.request")
-mcp_asgi_app = mcp.streamable_http_app(streamable_http_path="/", json_response=True, stateless_http=True)
+mcp.settings.streamable_http_path = "/"
+mcp_asgi_app = mcp.streamable_http_app()
 
 
 @contextlib.asynccontextmanager
@@ -43,6 +45,8 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
                    allow_credentials=True, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                    allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Demo-User", "Mcp-Session-Id", "Mcp-Protocol-Version", "Last-Event-ID"],
                    expose_headers=["Mcp-Session-Id"])
+
+app.include_router(alexa_router)
 
 @app.middleware("http")
 async def request_logging(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
@@ -176,7 +180,7 @@ def load_demo(db: Session = Depends(get_db), user_id: str = Depends(current_user
         return meal_status(db, get_meal(db, existing.id, user_id))
     data = MealCreate(
         name="Dal, rice & aloo sabzi",
-        target_serving_at=datetime.now(timezone.utc) + timedelta(minutes=60),
+        target_serving_at=datetime.now(UTC) + timedelta(minutes=60),
         dishes=[
             DishCreate(name="Rice", steps=[
                 StepCreate(title="Wash rice", instruction="Rinse rice until the water is clearer.", duration_minutes=3),

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint
@@ -12,17 +12,17 @@ from app.db.base import Base
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-class MealStatus(str, enum.Enum):
+class MealStatus(str, enum.Enum):  # noqa: UP042
     ACTIVE = "active"
     PAUSED = "paused"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
 
-class StepStatus(str, enum.Enum):
+class StepStatus(str, enum.Enum):  # noqa: UP042
     PENDING = "pending"
     READY = "ready"
     IN_PROGRESS = "in_progress"
@@ -30,7 +30,7 @@ class StepStatus(str, enum.Enum):
     BLOCKED = "blocked"
 
 
-class TimerStatus(str, enum.Enum):
+class TimerStatus(str, enum.Enum):  # noqa: UP042
     ACTIVE = "active"
     FIRED = "fired"
     CANCELLED = "cancelled"

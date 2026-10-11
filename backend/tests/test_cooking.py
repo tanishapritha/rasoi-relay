@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
@@ -24,7 +24,7 @@ def db():
 
 def meal_payload():
     return MealCreate(
-        name="Dinner", target_serving_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        name="Dinner", target_serving_at=datetime.now(UTC) + timedelta(hours=1),
         dishes=[
             DishCreate(name="Rice", steps=[
                 StepCreate(title="Wash rice", instruction="Rinse the rice.", duration_minutes=3),

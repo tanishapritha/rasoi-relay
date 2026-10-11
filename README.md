@@ -99,6 +99,10 @@ Use MCP Inspector to verify initialization, tool discovery and state-changing ca
 - The development identity is not authentication. Production mode refuses API and MCP operations until a real auth design is implemented.
 - Demo reset deletes only records explicitly marked as demo and owned by the demo identity.
 
+## Alexa integration
+
+See [Alexa Custom Skill setup](docs/alexa-setup.md) for the initial voice integration, interaction model, and local/deployment setup. The endpoint is not a native Alexa alarm integration, and account linking is not implemented yet.
+
 ## Documentation
 
 - [Setup](docs/setup.md)
