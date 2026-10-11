@@ -30,6 +30,7 @@ export default function App() {
   const stepsCompleted = meal?.progress.completed ?? 0;
   const stepsTotal = meal?.progress.total ?? 0;
   const servingTime = useMemo(() => meal ? new Date(meal.target_serving_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—', [meal]);
+  const mutationError = startMutation.error || completeMutation.error || timerMutation.error || interruptionMutation.error || resumeMutation.error || recoveryMutation.error || resetMutation.error;
   const toggleVoice = () => {
     if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
     const controller = startBrowserRecognition(
@@ -62,7 +63,7 @@ export default function App() {
     </aside>
     <main className="main-content">
       <header className="topbar"><div><span className="eyebrow">SUNDAY, IN YOUR KITCHEN</span><h1>Let’s get dinner back on track.</h1><p>Pick up where you left off. We’ll remember the details.</p></div><div className="top-actions"><span className="status-pill"><span className="live-dot"/> Local demo</span><button className="icon-button" title="Reset demo" onClick={() => resetMutation.mutate()}><RotateCcw size={17}/></button></div></header>
-      {mealsQuery.isError && <div className="error-banner"><AlertTriangle size={18}/><span>Could not reach the API. Start FastAPI and check VITE_API_BASE_URL.</span></div>}
+      {mealsQuery.isError && <div className="error-banner"><AlertTriangle size={18}/><span>Could not reach the API. Start FastAPI and check VITE_API_BASE_URL.</span></div>}{mutationError && <div className="error-banner"><AlertTriangle size={18}/><span>{(mutationError as Error).message}</span></div>}
       {!meal && <section className="welcome-card"><div className="welcome-copy"><span className="eyebrow">A LITTLE LESS MENTAL LOAD</span><h2>Your meal, right where you left it.</h2><p>Load a reproducible dinner plan to explore saved progress, interruptions and safe recovery.</p><button className="primary-button" onClick={() => startMutation.mutate()} disabled={startMutation.isPending}><Play size={16}/>{startMutation.isPending ? 'Preparing dinner…' : 'Load demo dinner'}<ArrowRight size={16}/></button>{startMutation.isError && <p className="error-text">{(startMutation.error as Error).message}</p>}</div><div className="welcome-illustration"><div className="plate"><div className="food food-dal"/><div className="food food-rice"/><div className="food food-sabzi"/></div><span className="herb herb-one">✳</span><span className="herb herb-two">✦</span></div></section>}
       {meal && <>
         <section className="meal-summary"><div className="meal-heading"><div className="meal-icon"><Utensils size={20}/></div><div><span className="eyebrow">TONIGHT’S MENU</span><h2>{meal.name}</h2><span className="muted">{stepsCompleted} of {stepsTotal} steps confirmed</span></div></div><div className="serve-time"><span>Target serving</span><strong><Clock3 size={17}/>{servingTime}</strong><small>Estimate, not a guarantee</small></div></section>
