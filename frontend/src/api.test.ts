@@ -14,6 +14,6 @@ describe('demo meal fixture', () => {
 
   it('marks physical confirmation requirements explicitly', () => {
     const meal = demoMealPayload();
-    expect(meal.dishes.flatMap((dish) => dish.steps).some((step) => step.requires_physical_confirmation)).toBe(true);
+    expect(meal.dishes.flatMap((dish) => dish.steps).some((step) => 'requires_physical_confirmation' in step && step.requires_physical_confirmation)).toBe(true);
   });
 });
