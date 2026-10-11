@@ -167,7 +167,7 @@ def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | 
     for candidate in db.scalars(select(CookingStep).join(Dish).where(Dish.meal_id == meal.id)):
         if candidate.status == StepStatus.PENDING and _is_ready(db, candidate):
             candidate.status = StepStatus.READY
-    event_payload = {"step_id": step.id, "title": step.title,
+    event_payload: dict[str, Any] = {"step_id": step.id, "title": step.title,
                      "physical_condition_confirmed": physical_condition_confirmed}
     if actual_duration is not None:
         event_payload["actual_duration_minutes"] = actual_duration
