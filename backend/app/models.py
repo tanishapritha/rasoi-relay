@@ -36,10 +36,36 @@ class TimerStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    display_name: Mapped[str] = mapped_column(String(120), default="Household")
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True, unique=True)
+    account_status: Mapped[str] = mapped_column(String(24), default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    external_identities: Mapped[list[ExternalIdentity]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class ExternalIdentity(Base):
+    __tablename__ = "external_identities"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    provider: Mapped[str] = mapped_column(String(80))
+    provider_subject: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    user: Mapped[User] = relationship(back_populates="external_identities")
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_subject", name="uq_external_identity_provider_subject"),
+    )
+
+
 class Meal(Base):
     __tablename__ = "meals"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
     target_serving_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[MealStatus] = mapped_column(Enum(MealStatus), default=MealStatus.ACTIVE)
@@ -106,7 +132,7 @@ class CookingTimer(Base):
 class CookingEvent(Base):
     __tablename__ = "cooking_events"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     meal_id: Mapped[str] = mapped_column(ForeignKey("meals.id", ondelete="CASCADE"), index=True)
     event_type: Mapped[str] = mapped_column(String(64), index=True)
     source: Mapped[str] = mapped_column(String(32), default="api")
@@ -121,7 +147,7 @@ class CookingEvent(Base):
 class HouseholdPreference(Base):
     __tablename__ = "household_preferences"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     key: Mapped[str] = mapped_column(String(80))
     value: Mapped[dict[str, Any]] = mapped_column(JSON)
     locale: Mapped[str] = mapped_column(String(16), default="en-IN")
