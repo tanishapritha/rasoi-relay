@@ -528,7 +528,7 @@ class StartTimerIntentHandler(AbstractRequestHandler):
                 )
                 if next_action.get("clarification_required") and not confirmed:
                     return _response(handler_input, _action_speech(next_action))
-                result = start_timer(
+                start_timer(
                     db, meal, action["step_id"], duration_minutes=duration,
                     physical_condition_confirmed=bool(confirmed), source="alexa",
                 )
