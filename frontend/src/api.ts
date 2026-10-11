@@ -45,6 +45,7 @@ export const api = {
   createMeal: (body: unknown) => request<Meal>('/api/v1/meals', { method: 'POST', body: JSON.stringify(body) }),
   complete: (mealId: string, stepId: string, physicalConditionConfirmed = false) => request(`/api/v1/meals/${mealId}/steps/${stepId}/complete`, { method: 'POST', body: JSON.stringify({ physical_condition_confirmed: physicalConditionConfirmed }) }),
   loadDemo: () => request<Meal>('/api/v1/demo/load', { method: 'POST' }),
+  conversation: (message: string, mealId: string) => request<{ intent: string; response: string; clarification_required: boolean; result?: unknown }>('/api/v1/conversation', { method: 'POST', body: JSON.stringify({ message, meal_id: mealId }) }),
   startTimer: (mealId: string, stepId: string, physicalConditionConfirmed = false) => request<{ timer_id: string; deadline_at: string; status: string }>(`/api/v1/meals/${mealId}/steps/${stepId}/timer`, { method: 'POST', body: JSON.stringify({ physical_condition_confirmed: physicalConditionConfirmed }) }),
 
   resetDemo: () => request<{ status: string; deleted_demo_meals: number }>('/api/v1/demo/reset', { method: 'POST' }),
