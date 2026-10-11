@@ -51,11 +51,10 @@ def get_next_action(meal_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def complete_cooking_step(meal_id: str, step_id: str, idempotency_key: str | None = None,
-                          physical_condition_confirmed: bool = False) -> dict[str, Any]:
-    """Validate and persist completion; sensitive steps require explicit physical confirmation."""
+def complete_cooking_step(meal_id: str, step_id: str, idempotency_key: str | None = None) -> dict[str, Any]:
+    """Complete an eligible step. Safety-sensitive steps require confirmation through the app UI."""
     with SessionLocal() as db:
-        return complete_step(db, get_meal(db, meal_id, _user_id()), step_id, idempotency_key, physical_condition_confirmed, source="mcp")
+        return complete_step(db, get_meal(db, meal_id, _user_id()), step_id, idempotency_key, source="mcp")
 
 
 @mcp.tool()
@@ -102,11 +101,9 @@ def get_household_preferences() -> list[dict[str, Any]]:
 
 
 @mcp.tool()
-def start_cooking_timer(meal_id: str, step_id: str, duration_minutes: int | None = None,
-                        physical_condition_confirmed: bool = False) -> dict[str, Any]:
-    """Start a persisted timer with an absolute deadline; sensitive steps require confirmation."""
+def start_cooking_timer(meal_id: str, step_id: str, duration_minutes: int | None = None) -> dict[str, Any]:
+    """Start a persisted timer. Safety-sensitive steps require confirmation through the app UI."""
     from app.services.cooking import start_timer
     with SessionLocal() as db:
-        return start_timer(db, get_meal(db, meal_id, _user_id()), step_id, duration_minutes,
-                           physical_condition_confirmed, source="mcp")
+        return start_timer(db, get_meal(db, meal_id, _user_id()), step_id, duration_minutes, source="mcp")
 
