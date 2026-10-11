@@ -9,7 +9,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Initial tests cover meal creation, eligible next action, blocked-step rejection, idempotent completion, interruption recovery, unknown stove state, and user-scoped meal reads.
+Initial tests cover meal creation, eligible next action, blocked-step rejection, idempotent completion, interruption recovery, unknown stove state, user-scoped meal reads, explicit physical confirmation, absolute timer deadlines, bounded adaptive estimates, English/Hinglish intent parsing, and confirmed meal resumption.
 
 ## Required before release
 
