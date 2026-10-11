@@ -44,7 +44,7 @@ def _event(db: Session, meal: Meal, event_type: str, payload: dict[str, Any],
                         idempotency_key=key))
 
 
-def create_meal(db: Session, user_id: str, data: MealCreate, is_demo: bool = False) -> Meal:
+def create_meal(db: Session, user_id: str, data: MealCreate, is_demo: bool = False, source: str = "api") -> Meal:
     _ensure_user(db, user_id)
     meal = Meal(user_id=user_id, name=data.name, target_serving_at=data.target_serving_at,
                 status=MealStatus.ACTIVE, is_demo=is_demo)
@@ -80,7 +80,7 @@ def create_meal(db: Session, user_id: str, data: MealCreate, is_demo: bool = Fal
             deps = list(db.scalars(select(StepDependency).where(StepDependency.step_id == step.id)))
             if not deps:
                 step.status = StepStatus.READY
-    _event(db, meal, "meal_started", {"name": meal.name, "dish_count": len(data.dishes)}, confirmed=True)
+    _event(db, meal, "meal_started", {"name": meal.name, "dish_count": len(data.dishes)}, source=source, confirmed=True)
     db.commit()
     return db.scalar(_meal_query(meal.id))  # type: ignore[return-value]
 
@@ -150,7 +150,7 @@ def get_next_action(db: Session, meal: Meal) -> dict[str, Any]:
 
 
 def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | None = None,
-                  physical_condition_confirmed: bool = False) -> dict[str, Any]:
+                  physical_condition_confirmed: bool = False, source: str = "api") -> dict[str, Any]:
     if idempotency_key:
         existing = db.scalar(select(CookingEvent).where(CookingEvent.idempotency_key == idempotency_key))
         if existing:
@@ -183,15 +183,15 @@ def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | 
     if actual_duration is not None:
         event_payload["actual_duration_minutes"] = actual_duration
     _event(db, meal, "step_completed", event_payload,
-           confirmed=True, key=idempotency_key)
+           source=source, confirmed=True, key=idempotency_key)
     db.commit()
     return {"status": "completed", "meal_id": meal.id, "step_id": step.id,
             "next_action": get_next_action(db, get_meal(db, meal.id, meal.user_id))}
 
 
-def report_interruption(db: Session, meal: Meal, reason: str, details: dict[str, Any]) -> dict[str, Any]:
+def report_interruption(db: Session, meal: Meal, reason: str, details: dict[str, Any], source: str = "api") -> dict[str, Any]:
     meal.status = MealStatus.PAUSED
-    _event(db, meal, "interruption_reported", {"reason": reason, "details": details}, confirmed=True)
+    _event(db, meal, "interruption_reported", {"reason": reason, "details": details}, source=source, confirmed=True)
     db.commit()
     return recover_meal(db, get_meal(db, meal.id, meal.user_id))
 
@@ -217,7 +217,7 @@ def recover_meal(db: Session, meal: Meal) -> dict[str, Any]:
     }
 
 
-def revise_plan(db: Session, meal: Meal, reason: str, delay_minutes: int = 0) -> dict[str, Any]:
+def revise_plan(db: Session, meal: Meal, reason: str, delay_minutes: int = 0, source: str = "api") -> dict[str, Any]:
     if delay_minutes < 0 or delay_minutes > 720:
         raise HTTPException(status_code=422, detail={"code": "INVALID_DELAY", "message": "Delay must be between 0 and 720 minutes."})
     previous = {"target_serving_at": meal.target_serving_at.isoformat(), "reason": reason}
@@ -225,7 +225,7 @@ def revise_plan(db: Session, meal: Meal, reason: str, delay_minutes: int = 0) ->
     revised = {"target_serving_at": meal.target_serving_at.isoformat(), "delay_minutes": delay_minutes}
     db.add(MealPlanRevision(meal_id=meal.id, previous_snapshot=previous,
                             revised_snapshot=revised, reason=reason))
-    _event(db, meal, "plan_revised", revised, confirmed=True)
+    _event(db, meal, "plan_revised", revised, source=source, confirmed=True)
     db.commit()
     return {"meal_id": meal.id, "target_serving_at": meal.target_serving_at.isoformat(),
             "delay_minutes": delay_minutes, "reason": reason}
@@ -273,7 +273,7 @@ def meal_status(db: Session, meal: Meal) -> dict[str, Any]:
 
 
 def start_timer(db: Session, meal: Meal, step_id: str, duration_minutes: int | None = None,
-                physical_condition_confirmed: bool = False) -> dict[str, Any]:
+                physical_condition_confirmed: bool = False, source: str = "api") -> dict[str, Any]:
     step = db.scalar(select(CookingStep).join(Dish).where(CookingStep.id == step_id, Dish.meal_id == meal.id))
     if step is None:
         raise HTTPException(status_code=404, detail={"code": "STEP_NOT_FOUND", "message": "Step not found in this meal."})
@@ -295,15 +295,15 @@ def start_timer(db: Session, meal: Meal, step_id: str, duration_minutes: int | N
     if step.status != StepStatus.COMPLETED:
         step.status = StepStatus.IN_PROGRESS
     db.add(timer)
-    _event(db, meal, "timer_started", {"step_id": step.id, "duration_minutes": duration, "deadline_at": deadline.isoformat()}, confirmed=True)
+    _event(db, meal, "timer_started", {"step_id": step.id, "duration_minutes": duration, "deadline_at": deadline.isoformat()}, source=source, confirmed=True)
     db.commit()
     return {"timer_id": timer.id, "step_id": step.id, "deadline_at": deadline.isoformat(), "status": timer.status.value, "already_running": False}
 
 
-def report_cooking_issue(db: Session, meal: Meal, issue_type: str, description: str) -> dict[str, Any]:
+def report_cooking_issue(db: Session, meal: Meal, issue_type: str, description: str, source: str = "api") -> dict[str, Any]:
     allowed = {"delay", "missing_ingredient", "uncertain_condition", "other"}
     if issue_type not in allowed:
         raise HTTPException(status_code=422, detail={"code": "INVALID_ISSUE_TYPE", "message": "Unsupported cooking issue type."})
-    _event(db, meal, "cooking_issue", {"issue_type": issue_type, "description": description}, confirmed=True)
+    _event(db, meal, "cooking_issue", {"issue_type": issue_type, "description": description}, source=source, confirmed=True)
     db.commit()
     return {"status": "recorded", "meal_id": meal.id, "issue_type": issue_type}
