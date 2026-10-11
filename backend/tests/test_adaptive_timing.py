@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -16,7 +16,7 @@ def test_timing_estimate_uses_household_history_after_three_observations():
     try:
         with factory() as db:
             meal = create_meal(db, 'adaptive-user', MealCreate(
-                name='Adaptive test', target_serving_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                name='Adaptive test', target_serving_at=datetime.now(UTC) + timedelta(hours=1),
                 dishes=[DishCreate(name='Rice', steps=[StepCreate(
                     title='Wash rice', instruction='Rinse rice.', duration_minutes=5,
                 )])],
