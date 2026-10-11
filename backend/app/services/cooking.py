@@ -307,3 +307,26 @@ def report_cooking_issue(db: Session, meal: Meal, issue_type: str, description: 
     _event(db, meal, "cooking_issue", {"issue_type": issue_type, "description": description}, source=source, confirmed=True)
     db.commit()
     return {"status": "recorded", "meal_id": meal.id, "issue_type": issue_type}
+
+
+def resume_meal(db: Session, meal: Meal, user_confirmed: bool,
+                confirmed_conditions: dict[str, str] | None = None) -> dict[str, Any]:
+    if not user_confirmed:
+        raise HTTPException(status_code=409, detail={"code": "RESUME_CONFIRMATION_REQUIRED", "message": "Explicit user confirmation is required to resume cooking."})
+    conditions = confirmed_conditions or {}
+    latest_interruption = db.scalar(
+        select(CookingEvent).where(CookingEvent.meal_id == meal.id,
+                                   CookingEvent.event_type == "interruption_reported")
+        .order_by(CookingEvent.created_at.desc()).limit(1)
+    )
+    if latest_interruption is not None:
+        details = latest_interruption.payload.get("details", {})
+        if details.get("stove_state") in (None, "unknown") and conditions.get("stove_state") not in {"on", "off"}:
+            raise HTTPException(status_code=409, detail={"code": "PHYSICAL_STATE_UNCONFIRMED", "message": "Check the stove in person and confirm whether it is on or off before resuming."})
+        if conditions:
+            _event(db, meal, "physical_state_confirmed", {"conditions": conditions}, confirmed=True)
+    meal.status = MealStatus.ACTIVE
+    _event(db, meal, "meal_resumed", {"confirmed_conditions": conditions}, confirmed=True)
+    db.commit()
+    return {"status": "active", "meal_id": meal.id, "confirmed_conditions": conditions,
+            "next_action": get_next_action(db, get_meal(db, meal.id, meal.user_id))}
