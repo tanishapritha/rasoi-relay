@@ -6,14 +6,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.ai.provider import get_intent_provider
+from app.ai.intent_parser import parse_intent
 from app.core.config import get_settings
 from app.db.session import get_db, engine
 from app.models import Meal
 from app.mcp_server import mcp
-from app.schemas import CompleteStepRequest, DishCreate, InterruptionCreate, MealCreate, PreferenceWrite, StepCreate, TimerStart
+from app.schemas import CookingIssueCreate, CompleteStepRequest, ConversationRequest, DishCreate, InterruptionCreate, MealCreate, PreferenceWrite, StepCreate, TimerStart
 from app.services.cooking import (
     complete_step, create_meal, get_meal, get_next_action, get_preferences,
-    meal_status, recover_meal, report_interruption, revise_plan, save_preference, start_timer,
+    meal_status, recover_meal, report_cooking_issue, report_interruption, revise_plan, save_preference, start_timer,
 )
 
 settings = get_settings()
@@ -100,6 +102,13 @@ def post_timer(meal_id: str, step_id: str, data: TimerStart, db: Session = Depen
     return start_timer(db, meal, step_id, data.duration_minutes, data.physical_condition_confirmed)
 
 
+@app.post("/api/v1/meals/{meal_id}/issues")
+def post_issue(meal_id: str, data: CookingIssueCreate, db: Session = Depends(get_db),
+               user_id: str = Depends(current_user)) -> dict:
+    meal = get_meal(db, meal_id, user_id)
+    return report_cooking_issue(db, meal, data.issue_type, data.description)
+
+
 @app.post("/api/v1/meals/{meal_id}/interruptions")
 def post_interruption(meal_id: str, data: InterruptionCreate, db: Session = Depends(get_db),
                       user_id: str = Depends(current_user)) -> dict:
@@ -175,3 +184,33 @@ def reset_demo(db: Session = Depends(get_db), user_id: str = Depends(current_use
 
 # Mount last so the MCP sub-application cannot shadow the REST routes above.
 app.mount("/mcp", mcp_asgi_app)
+
+
+@app.post("/api/v1/conversation")
+def converse(data: ConversationRequest, db: Session = Depends(get_db), user_id: str = Depends(current_user)) -> dict:
+    intent = get_intent_provider().classify(data.message)
+    if data.meal_id:
+        meal = get_meal(db, data.meal_id, user_id)
+    else:
+        candidates = db.query(Meal).filter(Meal.user_id == user_id, Meal.status.in_(["active", "paused"])).order_by(Meal.created_at.desc()).limit(3).all()
+        if len(candidates) == 0:
+            return {"intent": intent.name, "response": "There is no active meal yet. Load or start a meal first.", "clarification_required": True}
+        if len(candidates) > 1:
+            return {"intent": intent.name, "response": "Which meal do you want to resume? Please select one from your dashboard.", "clarification_required": True, "meals": [{"id": meal.id, "name": meal.name} for meal in candidates]}
+        meal = get_meal(db, candidates[0].id, user_id)
+    if intent.name == "recover_meal":
+        result = recover_meal(db, meal)
+        response = "Your saved progress is recovered. Please confirm any unknown physical conditions before continuing." if result["clarification_required"] else "Your saved progress is recovered. Here is the next eligible action."
+        return {"intent": intent.name, "response": response, "clarification_required": result["clarification_required"], "result": result}
+    if intent.name == "get_meal_status":
+        result = meal_status(db, meal)
+        return {"intent": intent.name, "response": f"{result['progress']['completed']} of {result['progress']['total']} cooking steps are confirmed complete.", "clarification_required": False, "result": result}
+    if intent.name == "report_uncertain_physical_state":
+        result = report_interruption(db, meal, "user unsure about physical state", {"stove_state": "unknown", "source_message": "user-reported uncertainty"})
+        return {"intent": intent.name, "response": "I cannot tell whether the stove is on or off. Please check it in person and confirm before resuming.", "clarification_required": True, "result": result}
+    if intent.name == "report_interruption":
+        result = report_interruption(db, meal, "user-reported interruption", {})
+        return {"intent": intent.name, "response": "Interruption recorded. I preserved confirmed progress; tell me if any physical condition is uncertain.", "clarification_required": False, "result": result}
+    if intent.name == "report_delay":
+        return {"intent": intent.name, "response": "How many extra minutes should I plan for? I will revise the schedule only after you confirm the delay.", "clarification_required": True}
+    return {"intent": intent.name, "response": intent.clarification or "Could you clarify what you need?", "clarification_required": True}
