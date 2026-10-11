@@ -6,6 +6,8 @@
 - `backend/app/services/cooking.py`: deterministic cooking application services.
 - `backend/app/models.py`: relational persistence models.
 - `backend/app/mcp_server.py`: MCP adapter using the same application services.
+- `backend/app/ai/`: deterministic English/Hinglish intent parser and provider interface.
+- `backend/app/auth/dependencies.py`: development-only identity dependency; production stays closed until real authentication is implemented.
 - `backend/migrations/`: Alembic schema migration.
 - `scripts/`: deterministic demo seed and scoped reset.
 - `frontend/`: browser UI, API client and demo workflow.
@@ -20,4 +22,4 @@ AI output is never an authority for persisted state or physical observations. Th
 
 ## Scheduling assumptions
 
-The initial scheduler is deterministic and dependency-aware. It chooses the first eligible step in dish display order and sequence. It does not yet optimize burner conflicts or prove the serving deadline feasible. Durations are estimates, not evidence that food is cooked.
+The initial scheduler is deterministic and dependency-aware. It chooses the first eligible step in dish display order and sequence. It does not yet optimize burner conflicts or prove the serving deadline feasible. Durations are estimates, not evidence that food is cooked. After three timed completion observations for the same step title within a household, the median is used as a future estimate; this never changes safety rules or marks a step complete.
