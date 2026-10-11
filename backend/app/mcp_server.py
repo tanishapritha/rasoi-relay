@@ -32,7 +32,7 @@ def start_meal(name: str, target_serving_at: str, dishes: list[dict[str, Any]]) 
         parsed_dishes.append(DishCreate(name=dish["name"], steps=parsed_steps))
     data = MealCreate(name=name, target_serving_at=datetime.fromisoformat(target_serving_at), dishes=parsed_dishes)
     with SessionLocal() as db:
-        meal = create_meal(db, _user_id(), data)
+        meal = create_meal(db, _user_id(), data, source="mcp")
         return meal_status(db, meal)
 
 
@@ -55,14 +55,14 @@ def complete_cooking_step(meal_id: str, step_id: str, idempotency_key: str | Non
                           physical_condition_confirmed: bool = False) -> dict[str, Any]:
     """Validate and persist completion; sensitive steps require explicit physical confirmation."""
     with SessionLocal() as db:
-        return complete_step(db, get_meal(db, meal_id, _user_id()), step_id, idempotency_key, physical_condition_confirmed)
+        return complete_step(db, get_meal(db, meal_id, _user_id()), step_id, idempotency_key, physical_condition_confirmed, source="mcp")
 
 
 @mcp.tool()
 def report_interruption(meal_id: str, reason: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
     """Record an interruption without assuming unconfirmed steps are complete."""
     with SessionLocal() as db:
-        return interruption_service(db, get_meal(db, meal_id, _user_id()), reason, details or {})
+        return interruption_service(db, get_meal(db, meal_id, _user_id()), reason, details or {}, source="mcp")
 
 
 @mcp.tool()
@@ -77,14 +77,14 @@ def report_cooking_issue(meal_id: str, issue_type: str, description: str) -> dic
     """Record a cooking issue such as delay, missing ingredient, or uncertain condition."""
     with SessionLocal() as db:
         meal = get_meal(db, meal_id, _user_id())
-        return report_issue_service(db, meal, issue_type, description)
+        return report_issue_service(db, meal, issue_type, description, source="mcp")
 
 
 @mcp.tool()
 def revise_meal_plan(meal_id: str, reason: str, delay_minutes: int = 0) -> dict[str, Any]:
     """Revise the serving target while preserving completed steps."""
     with SessionLocal() as db:
-        return revise_plan(db, get_meal(db, meal_id, _user_id()), reason, delay_minutes)
+        return revise_plan(db, get_meal(db, meal_id, _user_id()), reason, delay_minutes, source="mcp")
 
 
 @mcp.tool()
@@ -108,5 +108,5 @@ def start_cooking_timer(meal_id: str, step_id: str, duration_minutes: int | None
     from app.services.cooking import start_timer
     with SessionLocal() as db:
         return start_timer(db, get_meal(db, meal_id, _user_id()), step_id, duration_minutes,
-                           physical_condition_confirmed)
+                           physical_condition_confirmed, source="mcp")
 
