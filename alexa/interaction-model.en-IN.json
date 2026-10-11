@@ -24,6 +24,16 @@
           ]
         },
         {
+          "name": "ConfirmPhysicalConditionIntent",
+          "slots": [],
+          "samples": [
+            "I checked and I'm ready",
+            "I checked the physical conditions",
+            "the physical conditions are checked",
+            "I confirmed it is safe to proceed"
+          ]
+        },
+        {
           "name": "NextActionIntent",
           "slots": [],
           "samples": [
