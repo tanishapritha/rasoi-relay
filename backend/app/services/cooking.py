@@ -252,3 +252,12 @@ def start_timer(db: Session, meal: Meal, step_id: str, duration_minutes: int | N
     _event(db, meal, "timer_started", {"step_id": step.id, "duration_minutes": duration, "deadline_at": deadline.isoformat()}, confirmed=True)
     db.commit()
     return {"timer_id": timer.id, "step_id": step.id, "deadline_at": deadline.isoformat(), "status": timer.status.value, "already_running": False}
+
+
+def report_cooking_issue(db: Session, meal: Meal, issue_type: str, description: str) -> dict[str, Any]:
+    allowed = {"delay", "missing_ingredient", "uncertain_condition", "other"}
+    if issue_type not in allowed:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_ISSUE_TYPE", "message": "Unsupported cooking issue type."})
+    _event(db, meal, "cooking_issue", {"issue_type": issue_type, "description": description}, confirmed=True)
+    db.commit()
+    return {"status": "recorded", "meal_id": meal.id, "issue_type": issue_type}
