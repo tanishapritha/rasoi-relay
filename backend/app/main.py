@@ -1,3 +1,4 @@
+import contextlib
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.session import get_db, engine
 from app.models import Meal
+from app.mcp_server import mcp
 from app.schemas import CompleteStepRequest, DishCreate, InterruptionCreate, MealCreate, PreferenceWrite, StepCreate
 from app.services.cooking import (
     complete_step, create_meal, get_meal, get_next_action, get_preferences,
@@ -15,11 +17,22 @@ from app.services.cooking import (
 )
 
 settings = get_settings()
+mcp_asgi_app = mcp.streamable_http_app(streamable_http_path="/", json_response=True, stateless_http=True)
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_app: FastAPI):
+    async with mcp.session_manager.run():
+        yield
+
+
 app = FastAPI(title="Rasoi Relay API", version="0.1.0",
-              description="Stateful cooking recovery API. Alexa+ experience is simulated unless verified.")
+              description="Stateful cooking recovery API. Alexa+ experience is simulated unless verified.",
+              lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
                    allow_credentials=True, allow_methods=["GET", "POST", "PUT", "OPTIONS"],
-                   allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Demo-User"])
+                   allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Demo-User", "Mcp-Session-Id", "Mcp-Protocol-Version", "Last-Event-ID"],
+                   expose_headers=["Mcp-Session-Id"])
 
 
 def current_user(x_demo_user: str | None = Header(default=None, alias="X-Demo-User")) -> str:
@@ -151,3 +164,7 @@ def reset_demo(db: Session = Depends(get_db), user_id: str = Depends(current_use
         db.delete(meal)
     db.commit()
     return {"status": "reset", "deleted_demo_meals": len(demo_meals)}
+
+
+# Mount last so the MCP sub-application cannot shadow the REST routes above.
+app.mount("/mcp", mcp_asgi_app)
