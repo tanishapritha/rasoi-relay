@@ -40,7 +40,7 @@ app = FastAPI(title="Rasoi Relay API", version="0.1.0",
               description="Stateful cooking recovery API. Alexa+ experience is simulated unless verified.",
               lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
-                   allow_credentials=True, allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+                   allow_credentials=True, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                    allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Demo-User", "Mcp-Session-Id", "Mcp-Protocol-Version", "Last-Event-ID"],
                    expose_headers=["Mcp-Session-Id"])
 
