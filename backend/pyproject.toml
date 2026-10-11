@@ -18,7 +18,7 @@ dependencies = [
   "ask-sdk-core>=1.19,<2.0",
   "ask-sdk-webservice-support>=1.0,<2.0",
   # Upstream PyPI oscrypto releases do not include the OpenSSL 3 version-parser fix.
-  "oscrypto @ git+https://github.com/wbond/oscrypto.git@d5f3437ed24257895ae1edd9e503cfb352e635a8",
+  "oscrypto>=1.3.0",
 ]
 
 [project.optional-dependencies]
@@ -50,3 +50,7 @@ ignore_missing_imports = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.uv.sources]
+# Upstream PyPI oscrypto releases do not include the OpenSSL 3 version-parser fix.
+oscrypto = { git = "https://github.com/wbond/oscrypto.git", rev = "d5f3437ed24257895ae1edd9e503cfb352e635a8" }
