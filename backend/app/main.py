@@ -97,7 +97,7 @@ def post_complete(meal_id: str, step_id: str, data: CompleteStepRequest,
 def post_timer(meal_id: str, step_id: str, data: TimerStart, db: Session = Depends(get_db),
                user_id: str = Depends(current_user)) -> dict:
     meal = get_meal(db, meal_id, user_id)
-    return start_timer(db, meal, step_id, data.duration_minutes)
+    return start_timer(db, meal, step_id, data.duration_minutes, data.physical_condition_confirmed)
 
 
 @app.post("/api/v1/meals/{meal_id}/interruptions")
