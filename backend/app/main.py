@@ -7,10 +7,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.ai.provider import get_intent_provider
-from app.ai.intent_parser import parse_intent
 from app.core.config import get_settings
 from app.db.session import get_db, engine
-from app.models import Meal
+from app.models import Meal, MealStatus
 from app.mcp_server import mcp
 from app.schemas import CookingIssueCreate, CompleteStepRequest, ConversationRequest, DishCreate, InterruptionCreate, MealCreate, PreferenceWrite, StepCreate, TimerStart
 from app.services.cooking import (
@@ -192,7 +191,7 @@ def converse(data: ConversationRequest, db: Session = Depends(get_db), user_id: 
     if data.meal_id:
         meal = get_meal(db, data.meal_id, user_id)
     else:
-        candidates = db.query(Meal).filter(Meal.user_id == user_id, Meal.status.in_(["active", "paused"])).order_by(Meal.created_at.desc()).limit(3).all()
+        candidates = db.query(Meal).filter(Meal.user_id == user_id, Meal.status.in_([MealStatus.ACTIVE, MealStatus.PAUSED])).order_by(Meal.created_at.desc()).limit(3).all()
         if len(candidates) == 0:
             return {"intent": intent.name, "response": "There is no active meal yet. Load or start a meal first.", "clarification_required": True}
         if len(candidates) > 1:
