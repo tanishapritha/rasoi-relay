@@ -45,6 +45,7 @@ export const api = {
   meal: (id: string) => request<Meal>(`/api/v1/meals/${id}/status`),
   createMeal: (body: unknown) => request<Meal>('/api/v1/meals', { method: 'POST', body: JSON.stringify(body) }),
   interrupt: (mealId: string) => request(`/api/v1/meals/${mealId}/interruptions`, { method: 'POST', body: JSON.stringify({ reason: 'Demo interruption: phone call', details: { stove_state: 'unknown', simulated: true } }) }),
+  resume: (mealId: string, stoveState: 'on' | 'off') => request(`/api/v1/meals/${mealId}/resume`, { method: 'POST', body: JSON.stringify({ user_confirmed: true, confirmed_conditions: { stove_state: stoveState } }) }),
   complete: (mealId: string, stepId: string, physicalConditionConfirmed = false) => request(`/api/v1/meals/${mealId}/steps/${stepId}/complete`, { method: 'POST', body: JSON.stringify({ physical_condition_confirmed: physicalConditionConfirmed }) }),
   loadDemo: () => request<Meal>('/api/v1/demo/load', { method: 'POST' }),
   conversation: (message: string, mealId: string) => request<{ intent: string; response: string; clarification_required: boolean; result?: unknown }>('/api/v1/conversation', { method: 'POST', body: JSON.stringify({ message, meal_id: mealId }) }),
@@ -86,8 +87,9 @@ export async function callMcpTool<T>(name: string, args: Record<string, unknown>
     if (result.isError) throw new Error(`MCP tool ${name} returned an error`);
     const structured = (result as { structuredContent?: T }).structuredContent;
     if (structured !== undefined) return structured;
-    const textResult = result.content.find((item) => item.type === 'text');
-    if (textResult?.type === 'text') {
+    const contentItems = result.content as Array<{ type: string; text?: string }>;
+    const textResult = contentItems.find((item) => item.type === 'text');
+    if (textResult?.type === 'text' && typeof textResult.text === 'string') {
       try { return JSON.parse(textResult.text) as T; } catch { return textResult.text as T; }
     }
     return result as T;
