@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from statistics import median
 from typing import Any
 
 from fastapi import HTTPException
@@ -98,6 +99,27 @@ def _is_ready(db: Session, step: CookingStep) -> bool:
     return len(completed_ids) == len(dependencies)
 
 
+def _duration_estimate(db: Session, meal: Meal, step: CookingStep) -> dict[str, Any]:
+    events = db.scalars(
+        select(CookingEvent).where(
+            CookingEvent.user_id == meal.user_id,
+            CookingEvent.event_type == "step_completed",
+        ).order_by(CookingEvent.created_at.desc()).limit(100)
+    ).all()
+    observations = [
+        int(event.payload["actual_duration_minutes"])
+        for event in events
+        if event.payload.get("title") == step.title
+        and isinstance(event.payload.get("actual_duration_minutes"), int)
+        and int(event.payload["actual_duration_minutes"]) > 0
+    ]
+    # Adapt estimates only after several explicitly completed, timed observations.
+    if len(observations) >= 3:
+        return {"minutes": max(1, int(round(median(observations)))), "source": "household_history",
+                "observations": len(observations)}
+    return {"minutes": step.duration_minutes, "source": "recipe_default", "observations": len(observations)}
+
+
 def get_next_action(db: Session, meal: Meal) -> dict[str, Any]:
     steps = [step for dish in meal.dishes for step in dish.steps]
     ready = [step for step in steps if _is_ready(db, step)]
@@ -109,8 +131,10 @@ def get_next_action(db: Session, meal: Meal) -> dict[str, Any]:
         return {"action": {"step_id": step.id, "dish": step.dish.name, "title": step.title},
                 "reason": "physical_confirmation_required", "clarification_required": True,
                 "question": "Please confirm the current physical conditions before proceeding."}
+    estimate = _duration_estimate(db, meal, step)
     return {"action": {"step_id": step.id, "dish": step.dish.name, "title": step.title,
-                       "instruction": step.instruction, "estimated_minutes": step.duration_minutes},
+                       "instruction": step.instruction, "estimated_minutes": estimate["minutes"],
+                       "estimate_source": estimate["source"], "timed_observations": estimate["observations"]},
             "reason": "eligible_step", "clarification_required": False}
 
 
@@ -131,13 +155,23 @@ def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | 
         raise HTTPException(status_code=409, detail={"code": "PHYSICAL_CONFIRMATION_REQUIRED", "message": "Confirm the current physical conditions before completing this step."})
     if not _is_ready(db, step):
         raise HTTPException(status_code=409, detail={"code": "STEP_BLOCKED", "message": "Prerequisite steps are not complete."})
+    completed_at = _now()
+    actual_duration = None
+    if step.started_at is not None:
+        started_at = step.started_at
+        if started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+        actual_duration = max(1, int(round((completed_at - started_at).total_seconds() / 60)))
     step.status = StepStatus.COMPLETED
-    step.completed_at = _now()
+    step.completed_at = completed_at
     for candidate in db.scalars(select(CookingStep).join(Dish).where(Dish.meal_id == meal.id)):
         if candidate.status == StepStatus.PENDING and _is_ready(db, candidate):
             candidate.status = StepStatus.READY
-    _event(db, meal, "step_completed", {"step_id": step.id, "title": step.title,
-                                      "physical_condition_confirmed": physical_condition_confirmed},
+    event_payload = {"step_id": step.id, "title": step.title,
+                     "physical_condition_confirmed": physical_condition_confirmed}
+    if actual_duration is not None:
+        event_payload["actual_duration_minutes"] = actual_duration
+    _event(db, meal, "step_completed", event_payload,
            confirmed=True, key=idempotency_key)
     db.commit()
     return {"status": "completed", "meal_id": meal.id, "step_id": step.id,
