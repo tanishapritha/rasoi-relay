@@ -263,10 +263,28 @@ def meal_status(db: Session, meal: Meal) -> dict[str, Any]:
                                "timers": [{"deadline_at": timer.deadline_at.isoformat(), "status": timer.status.value}
                                           for timer in step.timers]})
         dishes.append({"id": dish.id, "name": dish.name, "status": dish.status, "steps": step_items})
+    remaining_by_dish = {
+        dish.name: sum(step.duration_minutes for step in dish.steps if step.status != StepStatus.COMPLETED)
+        for dish in meal.dishes
+    }
+    estimated_remaining = max(remaining_by_dish.values(), default=0)
+    estimated_finish = _now() + timedelta(minutes=estimated_remaining)
+    target = meal.target_serving_at
+    if target.tzinfo is None:
+        target = target.replace(tzinfo=timezone.utc)
+    schedule = {
+        "estimated_remaining_minutes": estimated_remaining,
+        "estimated_finish_at": estimated_finish.isoformat(),
+        "serving_feasible": estimated_finish <= target,
+        "method": "maximum_remaining_dish_duration",
+        "remaining_minutes_by_dish": remaining_by_dish,
+        "caveat": "Heuristic estimate; resource conflicts and physical conditions are not observed.",
+    }
     return {"id": meal.id, "name": meal.name, "status": meal.status.value,
-            "target_serving_at": meal.target_serving_at.isoformat(), "dishes": dishes,
+            "target_serving_at": target.isoformat(), "dishes": dishes,
             "progress": {"completed": steps_done, "total": steps_total,
                          "fraction": steps_done / steps_total if steps_total else 0},
+            "schedule": schedule,
             "next_action": get_next_action(db, meal),
             "recent_events": [{"type": e.event_type, "payload": e.payload, "created_at": e.created_at.isoformat() if e.created_at else None}
                               for e in sorted(meal.events, key=lambda event: event.created_at or _now(), reverse=True)[:10]]}
