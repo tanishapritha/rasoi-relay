@@ -8,8 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
-    CookingEvent, CookingStep, Dish, HouseholdPreference, Meal,
-    MealPlanRevision, MealStatus, StepDependency, StepStatus,
+    CookingEvent, CookingStep, CookingTimer, Dish, HouseholdPreference, Meal,
+    MealPlanRevision, MealStatus, StepDependency, StepStatus, TimerStatus,
 )
 from app.schemas import MealCreate
 
@@ -224,3 +224,26 @@ def meal_status(db: Session, meal: Meal) -> dict[str, Any]:
             "next_action": get_next_action(db, meal),
             "recent_events": [{"type": e.event_type, "payload": e.payload, "created_at": e.created_at.isoformat() if e.created_at else None}
                               for e in sorted(meal.events, key=lambda event: event.created_at or _now(), reverse=True)[:10]]}
+
+
+def start_timer(db: Session, meal: Meal, step_id: str, duration_minutes: int | None = None) -> dict[str, Any]:
+    step = db.scalar(select(CookingStep).join(Dish).where(CookingStep.id == step_id, Dish.meal_id == meal.id))
+    if step is None:
+        raise HTTPException(status_code=404, detail={"code": "STEP_NOT_FOUND", "message": "Step not found in this meal."})
+    duration = duration_minutes if duration_minutes is not None else step.duration_minutes
+    if duration < 1 or duration > 360:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_TIMER_DURATION", "message": "Timer duration must be between 1 and 360 minutes."})
+    active = db.scalar(select(CookingTimer).where(CookingTimer.step_id == step.id, CookingTimer.status == TimerStatus.ACTIVE))
+    if active is not None:
+        return {"timer_id": active.id, "step_id": step.id, "deadline_at": active.deadline_at.isoformat(), "status": active.status.value, "already_running": True}
+    now = _now()
+    deadline = now + timedelta(minutes=duration)
+    timer = CookingTimer(step_id=step.id, deadline_at=deadline, status=TimerStatus.ACTIVE)
+    if step.started_at is None:
+        step.started_at = now
+    if step.status != StepStatus.COMPLETED:
+        step.status = StepStatus.IN_PROGRESS
+    db.add(timer)
+    _event(db, meal, "timer_started", {"step_id": step.id, "duration_minutes": duration, "deadline_at": deadline.isoformat()}, confirmed=True)
+    db.commit()
+    return {"timer_id": timer.id, "step_id": step.id, "deadline_at": deadline.isoformat(), "status": timer.status.value, "already_running": False}
