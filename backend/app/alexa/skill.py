@@ -146,6 +146,24 @@ def _action_speech(result: dict[str, Any]) -> str:
     return f"The next step is {action.get('title', 'the next step')} for {action.get('dish', 'your dish')}."
 
 
+def _session_action_speech(handler_input: HandlerInput, meal: Meal, result: dict[str, Any]) -> str:
+    action = result.get("action") or {}
+    attributes = _pending(handler_input)
+    if (
+        result.get("clarification_required")
+        and action.get("step_id")
+        and attributes.get("confirmed_step_id") == action.get("step_id")
+        and attributes.get("confirmed_step_meal_id") == meal.id
+    ):
+        step = next(
+            (step for dish in meal.dishes for step in dish.steps if step.id == action["step_id"]),
+            None,
+        )
+        if step is not None:
+            return f"Next, {step.dish.name}: {step.title}. {step.instruction}"
+    return _action_speech(result)
+
+
 def _http_error_speech(exc: HTTPException) -> str:
     detail = exc.detail
     if isinstance(detail, dict):
@@ -264,7 +282,7 @@ class NextActionIntentHandler(AbstractRequestHandler):
                 if error:
                     return _response(handler_input, error)
                 assert meal is not None
-                return _response(handler_input, _action_speech(get_next_action(db, meal)), "Ask for the next step again whenever you're ready.")
+                return _response(handler_input, _session_action_speech(handler_input, meal, get_next_action(db, meal)), "Ask for the next step again whenever you're ready.")
         except HTTPException as exc:
             return _response(handler_input, _http_error_speech(exc))
 
@@ -325,6 +343,8 @@ class ReportInterruptionIntentHandler(AbstractRequestHandler):
                 attributes.pop("confirmed_step_id", None)
                 attributes.pop("confirmed_step_meal_id", None)
                 attributes.pop("pending_action", None)
+                attributes.pop("pending_complete_meal_id", None)
+                attributes.pop("pending_complete_step_id", None)
                 attributes["pending_resume_meal_id"] = meal.id
                 attributes["pending_resume_needs_stove"] = True
                 _save_pending(handler_input, attributes)
@@ -351,6 +371,11 @@ class ResumeMealIntentHandler(AbstractRequestHandler):
                 assert meal is not None
                 recovered = recover_meal(db, meal)
                 attributes = _pending(handler_input)
+                attributes.pop("pending_action", None)
+                attributes.pop("pending_complete_meal_id", None)
+                attributes.pop("pending_complete_step_id", None)
+                attributes.pop("confirmed_step_id", None)
+                attributes.pop("confirmed_step_meal_id", None)
                 attributes["pending_resume_meal_id"] = meal.id
                 attributes["pending_resume_needs_stove"] = bool(recovered.get("clarification_required"))
                 _save_pending(handler_input, attributes)
@@ -456,10 +481,14 @@ class NoIntentHandler(AbstractRequestHandler):
 
     def handle(self, handler_input: HandlerInput) -> dict[str, Any]:
         attributes = _pending(handler_input)
-        attributes.pop("pending_resume_meal_id", None)
-        attributes.pop("pending_resume_needs_stove", None)
+        for key in (
+            "pending_resume_meal_id", "pending_resume_needs_stove",
+            "pending_action", "pending_complete_meal_id", "pending_complete_step_id",
+            "confirmed_step_id", "confirmed_step_meal_id",
+        ):
+            attributes.pop(key, None)
         _save_pending(handler_input, attributes)
-        return _response(handler_input, "Okay. I'll leave the cooking session paused.")
+        return _response(handler_input, "Okay. I won't apply that confirmation. The cooking session remains unchanged.")
 
 
 class StartTimerIntentHandler(AbstractRequestHandler):
@@ -483,11 +512,19 @@ class StartTimerIntentHandler(AbstractRequestHandler):
                 assert meal is not None
                 next_action = get_next_action(db, meal)
                 action = next_action.get("action") or {}
-                if next_action.get("clarification_required") or not action.get("step_id"):
+                if not action.get("step_id"):
+                    return _response(handler_input, _action_speech(next_action))
+                attributes = _pending(handler_input)
+                confirmed = (
+                    next_action.get("clarification_required")
+                    and attributes.get("confirmed_step_id") == action.get("step_id")
+                    and attributes.get("confirmed_step_meal_id") == meal.id
+                )
+                if next_action.get("clarification_required") and not confirmed:
                     return _response(handler_input, _action_speech(next_action))
                 result = start_timer(
                     db, meal, action["step_id"], duration_minutes=duration,
-                    physical_condition_confirmed=False, source="alexa",
+                    physical_condition_confirmed=bool(confirmed), source="alexa",
                 )
                 title = action.get("title", "the next step")
                 return _response(
