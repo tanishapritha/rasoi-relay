@@ -40,6 +40,10 @@ class CompleteStepRequest(BaseModel):
     physical_condition_confirmed: bool = False
 
 
+class TimerStart(BaseModel):
+    duration_minutes: int | None = Field(default=None, ge=1, le=360)
+
+
 class PhysicalConfirmation(BaseModel):
     condition: str = Field(min_length=1, max_length=100)
     value: str = Field(min_length=1, max_length=120)
