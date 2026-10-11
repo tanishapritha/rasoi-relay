@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     database_url: str = "postgresql+psycopg://postgres:password@localhost:5432/rasoi_relay"
     frontend_url: str = "http://localhost:5173"
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     auth_secret: str = "development-only-change-me"
     ai_provider: str = ""
     ai_api_key: str = ""
