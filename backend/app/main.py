@@ -181,10 +181,6 @@ def reset_demo(db: Session = Depends(get_db), user_id: str = Depends(current_use
     return {"status": "reset", "deleted_demo_meals": len(demo_meals)}
 
 
-# Mount last so the MCP sub-application cannot shadow the REST routes above.
-app.mount("/mcp", mcp_asgi_app)
-
-
 @app.post("/api/v1/conversation")
 def converse(data: ConversationRequest, db: Session = Depends(get_db), user_id: str = Depends(current_user)) -> dict:
     intent = get_intent_provider().classify(data.message)
@@ -213,3 +209,7 @@ def converse(data: ConversationRequest, db: Session = Depends(get_db), user_id: 
     if intent.name == "report_delay":
         return {"intent": intent.name, "response": "How many extra minutes should I plan for? I will revise the schedule only after you confirm the delay.", "clarification_required": True}
     return {"intent": intent.name, "response": intent.clarification or "Could you clarify what you need?", "clarification_required": True}
+
+
+# Keep the MCP mount after REST routes so the API remains discoverable and reachable.
+app.mount("/mcp", mcp_asgi_app)
