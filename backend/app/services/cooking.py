@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from statistics import median
 from typing import Any
 
@@ -16,7 +16,7 @@ from app.schemas import MealCreate
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _meal_query(meal_id: str) -> Any:
@@ -171,7 +171,7 @@ def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | 
     if step.started_at is not None:
         started_at = step.started_at
         if started_at.tzinfo is None:
-            started_at = started_at.replace(tzinfo=timezone.utc)
+            started_at = started_at.replace(tzinfo=UTC)
         actual_duration = max(1, int(round((completed_at - started_at).total_seconds() / 60)))
     step.status = StepStatus.COMPLETED
     step.completed_at = completed_at
@@ -274,7 +274,7 @@ def meal_status(db: Session, meal: Meal) -> dict[str, Any]:
     estimated_finish = _now() + timedelta(minutes=estimated_remaining)
     target = meal.target_serving_at
     if target.tzinfo is None:
-        target = target.replace(tzinfo=timezone.utc)
+        target = target.replace(tzinfo=UTC)
     schedule = {
         "estimated_remaining_minutes": estimated_remaining,
         "estimated_finish_at": estimated_finish.isoformat(),
