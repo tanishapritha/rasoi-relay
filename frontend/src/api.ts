@@ -43,6 +43,7 @@ export const api = {
   meals: () => request<{ id: string; name: string; status: string; target_serving_at: string }[]>('/api/v1/meals'),
   meal: (id: string) => request<Meal>(`/api/v1/meals/${id}/status`),
   createMeal: (body: unknown) => request<Meal>('/api/v1/meals', { method: 'POST', body: JSON.stringify(body) }),
+  interrupt: (mealId: string) => request(`/api/v1/meals/${mealId}/interruptions`, { method: 'POST', body: JSON.stringify({ reason: 'Demo interruption: phone call', details: { stove_state: 'unknown', simulated: true } }) }),
   complete: (mealId: string, stepId: string, physicalConditionConfirmed = false) => request(`/api/v1/meals/${mealId}/steps/${stepId}/complete`, { method: 'POST', body: JSON.stringify({ physical_condition_confirmed: physicalConditionConfirmed }) }),
   loadDemo: () => request<Meal>('/api/v1/demo/load', { method: 'POST' }),
   conversation: (message: string, mealId: string) => request<{ intent: string; response: string; clarification_required: boolean; result?: unknown }>('/api/v1/conversation', { method: 'POST', body: JSON.stringify({ message, meal_id: mealId }) }),
