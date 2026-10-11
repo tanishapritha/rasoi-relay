@@ -18,10 +18,10 @@ from app.core.logging import configure_logging
 from app.db.session import get_db, engine
 from app.models import Meal, MealStatus
 from app.mcp_server import mcp
-from app.schemas import CookingIssueCreate, CompleteStepRequest, ConversationRequest, DishCreate, InterruptionCreate, MealCreate, PreferenceWrite, StepCreate, TimerStart
+from app.schemas import CookingIssueCreate, CompleteStepRequest, ConversationRequest, DishCreate, InterruptionCreate, MealCreate, PreferenceWrite, ResumeMealRequest, StepCreate, TimerStart
 from app.services.cooking import (
     complete_step, create_meal, get_meal, get_next_action, get_preferences,
-    meal_status, recover_meal, report_cooking_issue, report_interruption, revise_plan, save_preference, start_timer,
+    meal_status, recover_meal, report_cooking_issue, report_interruption, resume_meal, revise_plan, save_preference, start_timer,
 )
 
 settings = get_settings()
@@ -134,6 +134,13 @@ def post_interruption(meal_id: str, data: InterruptionCreate, db: Session = Depe
                       user_id: str = Depends(current_user)) -> dict:
     meal = get_meal(db, meal_id, user_id)
     return report_interruption(db, meal, data.reason, data.details)
+
+
+@app.post("/api/v1/meals/{meal_id}/resume")
+def post_resume(meal_id: str, data: ResumeMealRequest, db: Session = Depends(get_db),
+                user_id: str = Depends(current_user)) -> dict:
+    meal = get_meal(db, meal_id, user_id)
+    return resume_meal(db, meal, data.user_confirmed, data.confirmed_conditions)
 
 
 @app.post("/api/v1/meals/{meal_id}/recover")
