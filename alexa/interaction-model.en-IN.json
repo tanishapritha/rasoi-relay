@@ -4,6 +4,16 @@
       "invocationName": "rasoi relay",
       "intents": [
         {
+          "name": "StartSampleMealIntent",
+          "slots": [],
+          "samples": [
+            "start a sample meal",
+            "start the sample cooking session",
+            "start a dal rice and aloo sabzi meal",
+            "let's start cooking"
+          ]
+        },
+        {
           "name": "MealStatusIntent",
           "slots": [],
           "samples": [
