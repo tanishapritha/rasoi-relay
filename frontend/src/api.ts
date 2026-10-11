@@ -1,3 +1,6 @@
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+
 export type CookingStep = {
   id: string;
   sequence: number;
@@ -42,8 +45,7 @@ export const api = {
   createMeal: (body: unknown) => request<Meal>('/api/v1/meals', { method: 'POST', body: JSON.stringify(body) }),
   complete: (mealId: string, stepId: string, physicalConditionConfirmed = false) => request(`/api/v1/meals/${mealId}/steps/${stepId}/complete`, { method: 'POST', body: JSON.stringify({ physical_condition_confirmed: physicalConditionConfirmed }) }),
   loadDemo: () => request<Meal>('/api/v1/demo/load', { method: 'POST' }),
-  interrupt: (mealId: string) => request(`/api/v1/meals/${mealId}/interruptions`, { method: 'POST', body: JSON.stringify({ reason: 'Demo interruption: phone call', details: { stove_state: 'unknown', simulated: true } }) }),
-  recover: (mealId: string) => request<Record<string, unknown>>(`/api/v1/meals/${mealId}/recover`, { method: 'POST' }),
+
   resetDemo: () => request<{ status: string; deleted_demo_meals: number }>('/api/v1/demo/reset', { method: 'POST' }),
 };
 
@@ -69,4 +71,23 @@ export function demoMealPayload() {
       ] },
     ],
   };
+}
+
+export async function callMcpTool<T>(name: string, args: Record<string, unknown>): Promise<T> {
+  const client = new Client({ name: 'rasoi-relay-web', version: '0.1.0' });
+  const transport = new StreamableHTTPClientTransport(new URL(`${API_BASE}/mcp/`));
+  await client.connect(transport);
+  try {
+    const result = await client.callTool({ name, arguments: args });
+    if (result.isError) throw new Error(`MCP tool ${name} returned an error`);
+    const structured = (result as { structuredContent?: T }).structuredContent;
+    if (structured !== undefined) return structured;
+    const textResult = result.content.find((item) => item.type === 'text');
+    if (textResult?.type === 'text') {
+      try { return JSON.parse(textResult.text) as T; } catch { return textResult.text as T; }
+    }
+    return result as T;
+  } finally {
+    await client.close();
+  }
 }
