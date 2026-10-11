@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from ask_sdk_core.dispatch_components import AbstractExceptionHandler, AbstractRequestHandler
@@ -214,7 +214,7 @@ class StartSampleMealIntentHandler(AbstractRequestHandler):
                     return _response(handler_input, f"You already have a cooking session called {existing.name}. Ask what you should do next.")
                 data = MealCreate(
                     name="Dal, rice and aloo sabzi",
-                    target_serving_at=datetime.now(timezone.utc) + timedelta(minutes=60),
+                    target_serving_at=datetime.now(UTC) + timedelta(minutes=60),
                     dishes=[
                         DishCreate(name="Rice", steps=[
                             StepCreate(title="Wash rice", instruction="Rinse rice until the water is clearer.", duration_minutes=3),
