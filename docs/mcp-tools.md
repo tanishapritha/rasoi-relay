@@ -14,5 +14,6 @@ The MCP adapter in `backend/app/mcp_server.py` uses the official Python MCP SDK 
 | `revise_meal_plan` | Revise serving target | Yes |
 | `save_household_preference` | Save explicit preference | Yes |
 | `get_household_preferences` | Read household preferences | No |
+| `start_cooking_timer` | Persist an absolute timer deadline | Yes |
 
 Production authorization is not complete; do not expose MCP publicly until authenticated identity propagation and ownership checks are implemented. MCP Inspector and deployed protocol behavior have not yet been verified.
