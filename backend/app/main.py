@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.ai.provider import get_intent_provider
+from app.alexa.endpoint import router as alexa_router
 from app.auth.dependencies import current_user
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -44,6 +45,8 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
                    allow_credentials=True, allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                    allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Demo-User", "Mcp-Session-Id", "Mcp-Protocol-Version", "Last-Event-ID"],
                    expose_headers=["Mcp-Session-Id"])
+
+app.include_router(alexa_router)
 
 @app.middleware("http")
 async def request_logging(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
