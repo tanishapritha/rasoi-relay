@@ -128,9 +128,14 @@ def _active_meal(db: Any, user_id: str) -> tuple[Meal | None, str | None]:
 
 
 def _action_speech(result: dict[str, Any]) -> str:
+    action = result.get("action") or {}
     if result.get("clarification_required"):
-        return str(result.get("question") or "I need you to confirm a physical condition before continuing.")
-    action = result.get("action")
+        title = action.get("title", "the next step")
+        dish = action.get("dish", "your dish")
+        return (
+            f"Before I give instructions for {title} for {dish}, please check the current physical "
+            "conditions in person. Then say, I checked and I'm ready."
+        )
     if not action:
         return "There is no eligible cooking step right now. Check the Rasoi Relay app for the current meal state."
     instruction = action.get("instruction")
@@ -138,10 +143,7 @@ def _action_speech(result: dict[str, Any]) -> str:
     estimate = f" The estimated time is {minutes} minutes." if minutes else ""
     if instruction:
         return f"Next, {action.get('dish', 'your dish')}: {action.get('title', 'the next step')}. {instruction}{estimate}"
-    return (
-        f"The next step is {action.get('title', 'the next step')} for {action.get('dish', 'your dish')}. "
-        "This step requires a physical confirmation in the Rasoi Relay app before proceeding."
-    )
+    return f"The next step is {action.get('title', 'the next step')} for {action.get('dish', 'your dish')}."
 
 
 def _http_error_speech(exc: HTTPException) -> str:
@@ -267,6 +269,42 @@ class NextActionIntentHandler(AbstractRequestHandler):
             return _response(handler_input, _http_error_speech(exc))
 
 
+class ConfirmPhysicalConditionIntentHandler(AbstractRequestHandler):
+    def can_handle(self, handler_input: HandlerInput) -> bool:
+        return is_intent_name("ConfirmPhysicalConditionIntent")(handler_input)
+
+    def handle(self, handler_input: HandlerInput) -> dict[str, Any]:
+        try:
+            with SessionLocal() as db:
+                user_id = _user_id(db, handler_input)
+                meal, error = _active_meal(db, user_id)
+                if error:
+                    return _response(handler_input, error)
+                assert meal is not None
+                result = get_next_action(db, meal)
+                action = result.get("action") or {}
+                if not result.get("clarification_required") or not action.get("step_id"):
+                    return _response(handler_input, _action_speech(result))
+                step_id = action["step_id"]
+                step = next(
+                    (step for dish in meal.dishes for step in dish.steps if step.id == step_id),
+                    None,
+                )
+                if step is None:
+                    return _response(handler_input, "I couldn't load that step. Please check Rasoi Relay before continuing.")
+                attributes = _pending(handler_input)
+                attributes["confirmed_step_id"] = step.id
+                attributes["confirmed_step_meal_id"] = meal.id
+                _save_pending(handler_input, attributes)
+                return _response(
+                    handler_input,
+                    f"Thanks for checking the current physical conditions. For {step.dish.name}, {step.title}: {step.instruction} When you finish this step, tell me you finished it. I'll ask you to confirm again before saving completion.",
+                    "When the step is finished, say, I finished that step.",
+                )
+        except HTTPException as exc:
+            return _response(handler_input, _http_error_speech(exc))
+
+
 class ReportInterruptionIntentHandler(AbstractRequestHandler):
     def can_handle(self, handler_input: HandlerInput) -> bool:
         return is_intent_name("ReportInterruptionIntent")(handler_input)
@@ -284,6 +322,9 @@ class ReportInterruptionIntentHandler(AbstractRequestHandler):
                     {"stove_state": "unknown"}, source="alexa",
                 )
                 attributes = _pending(handler_input)
+                attributes.pop("confirmed_step_id", None)
+                attributes.pop("confirmed_step_meal_id", None)
+                attributes.pop("pending_action", None)
                 attributes["pending_resume_meal_id"] = meal.id
                 attributes["pending_resume_needs_stove"] = True
                 _save_pending(handler_input, attributes)
@@ -363,6 +404,34 @@ class YesIntentHandler(AbstractRequestHandler):
 
     def handle(self, handler_input: HandlerInput) -> dict[str, Any]:
         attributes = _pending(handler_input)
+        if attributes.get("pending_action") == "complete_step":
+            meal_id = attributes.get("pending_complete_meal_id")
+            step_id = attributes.get("pending_complete_step_id")
+            if not meal_id or not step_id:
+                return _response(handler_input, "I lost the step confirmation. Please ask what you should do next.")
+            try:
+                with SessionLocal() as db:
+                    user_id = _user_id(db, handler_input)
+                    meal = get_meal(db, str(meal_id), user_id)
+                    request_id = getattr(handler_input.request_envelope.request, "request_id", None) or str(uuid.uuid4())
+                    result = complete_step(
+                        db, meal, str(step_id),
+                        idempotency_key=f"alexa:{request_id}:{step_id}",
+                        physical_condition_confirmed=True,
+                        source="alexa",
+                    )
+                    attributes.pop("pending_action", None)
+                    attributes.pop("pending_complete_meal_id", None)
+                    attributes.pop("pending_complete_step_id", None)
+                    attributes.pop("confirmed_step_id", None)
+                    attributes.pop("confirmed_step_meal_id", None)
+                    _save_pending(handler_input, attributes)
+                    return _response(
+                        handler_input,
+                        "I've updated the cooking progress. " + _action_speech(result.get("next_action") or get_next_action(db, get_meal(db, meal.id, user_id))),
+                    )
+            except HTTPException as exc:
+                return _response(handler_input, _http_error_speech(exc))
         meal_id = attributes.get("pending_resume_meal_id")
         if not meal_id:
             return _response(handler_input, "I don't have a pending confirmation. Ask what you should do next.")
@@ -443,8 +512,24 @@ class CompleteStepIntentHandler(AbstractRequestHandler):
                 assert meal is not None
                 next_action = get_next_action(db, meal)
                 action = next_action.get("action") or {}
-                if next_action.get("clarification_required") or not action.get("step_id"):
+                if not action.get("step_id"):
                     return _response(handler_input, _action_speech(next_action))
+                if next_action.get("clarification_required"):
+                    attributes = _pending(handler_input)
+                    if (
+                        attributes.get("confirmed_step_id") != action["step_id"]
+                        or attributes.get("confirmed_step_meal_id") != meal.id
+                    ):
+                        return _response(handler_input, _action_speech(next_action))
+                    attributes["pending_action"] = "complete_step"
+                    attributes["pending_complete_meal_id"] = meal.id
+                    attributes["pending_complete_step_id"] = action["step_id"]
+                    _save_pending(handler_input, attributes)
+                    return _response(
+                        handler_input,
+                        f"Before I mark {action.get('title', 'the step')} complete, have you finished it and checked the current physical conditions? Say yes to confirm.",
+                        "Say yes only if you have completed the step and checked the current physical conditions.",
+                    )
                 request_id = getattr(handler_input.request_envelope.request, "request_id", None) or str(uuid.uuid4())
                 result = complete_step(
                     db, meal, action["step_id"],
@@ -516,6 +601,7 @@ for request_handler in (
     StartSampleMealIntentHandler(),
     MealStatusIntentHandler(),
     NextActionIntentHandler(),
+    ConfirmPhysicalConditionIntentHandler(),
     ReportInterruptionIntentHandler(),
     ResumeMealIntentHandler(),
     ConfirmStoveStateIntentHandler(),
