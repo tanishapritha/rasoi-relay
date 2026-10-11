@@ -62,3 +62,20 @@ def test_alexa_endpoint_rejects_malformed_json(monkeypatch) -> None:
         response = client.post("/api/v1/alexa", content=b"{")
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "INVALID_ALEXA_JSON"
+
+
+def test_safety_sensitive_action_does_not_read_instruction_before_confirmation() -> None:
+    from app.alexa.skill import _action_speech
+
+    speech = _action_speech({
+        "clarification_required": True,
+        "question": "Check the physical conditions.",
+        "action": {
+            "step_id": "step-1",
+            "dish": "Rice",
+            "title": "Cook rice",
+        },
+    })
+    assert "check the current physical conditions in person" in speech
+    assert "I checked and I'm ready" in speech
+    assert "Rinse rice" not in speech
