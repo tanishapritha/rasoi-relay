@@ -6,11 +6,10 @@ from mcp.server.fastmcp import FastMCP
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
-from app.models import CookingEvent
 from app.schemas import DishCreate, MealCreate, StepCreate
 from app.services.cooking import (
     complete_step, create_meal, get_meal, get_next_action as next_action_service,
-    get_preferences, meal_status, recover_meal as recover_service,
+    get_preferences, meal_status, recover_meal as recover_service, report_cooking_issue as report_issue_service,
     report_interruption as interruption_service, revise_plan, save_preference,
 )
 
@@ -78,11 +77,7 @@ def report_cooking_issue(meal_id: str, issue_type: str, description: str) -> dic
     """Record a cooking issue such as delay, missing ingredient, or uncertain condition."""
     with SessionLocal() as db:
         meal = get_meal(db, meal_id, _user_id())
-        db.add(CookingEvent(user_id=meal.user_id, meal_id=meal.id, event_type="cooking_issue",
-                            source="mcp", confirmed=True,
-                            payload={"issue_type": issue_type, "description": description}))
-        db.commit()
-        return {"status": "recorded", "meal_id": meal.id, "issue_type": issue_type}
+        return report_issue_service(db, meal, issue_type, description)
 
 
 @mcp.tool()
