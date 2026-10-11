@@ -193,6 +193,9 @@ def report_interruption(db: Session, meal: Meal, reason: str, details: dict[str,
     meal.status = MealStatus.PAUSED
     _event(db, meal, "interruption_reported", {"reason": reason, "details": details}, source=source, confirmed=True)
     db.commit()
+    # The event collection may already be loaded in this SQLAlchemy session.
+    # Expire it so recovery sees the interruption we just committed.
+    db.expire(meal, ["events"])
     return recover_meal(db, get_meal(db, meal.id, meal.user_id))
 
 
