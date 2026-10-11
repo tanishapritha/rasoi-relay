@@ -1,5 +1,4 @@
-from datetime import datetime, timezone
-from uuid import UUID
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.session import get_db, engine
-from app.models import Base, Meal
-from app.schemas import CompleteStepRequest, InterruptionCreate, MealCreate, PreferenceWrite
+from app.models import Meal
+from app.schemas import CompleteStepRequest, DishCreate, InterruptionCreate, MealCreate, PreferenceWrite, StepCreate
 from app.services.cooking import (
     complete_step, create_meal, get_meal, get_next_action, get_preferences,
     meal_status, recover_meal, report_interruption, revise_plan, save_preference,
@@ -109,6 +108,38 @@ def read_preferences(db: Session = Depends(get_db), user_id: str = Depends(curre
 def put_preference(key: str, data: PreferenceWrite, db: Session = Depends(get_db),
                    user_id: str = Depends(current_user)) -> dict:
     return save_preference(db, user_id, key, data.value, data.locale)
+
+
+@app.post("/api/v1/demo/load", status_code=200)
+def load_demo(db: Session = Depends(get_db), user_id: str = Depends(current_user)) -> dict:
+    if not settings.demo_mode:
+        raise HTTPException(status_code=403, detail={"code": "DEMO_DISABLED", "message": "Demo mode is disabled."})
+    existing = db.query(Meal).filter(Meal.user_id == user_id, Meal.is_demo.is_(True), Meal.name == "Dal, rice & aloo sabzi").first()
+    if existing is not None:
+        from app.services.cooking import get_meal
+        return meal_status(db, get_meal(db, existing.id, user_id))
+    data = MealCreate(
+        name="Dal, rice & aloo sabzi",
+        target_serving_at=datetime.now(timezone.utc) + timedelta(minutes=60),
+        dishes=[
+            DishCreate(name="Rice", steps=[
+                StepCreate(title="Wash rice", instruction="Rinse rice until the water is clearer.", duration_minutes=3),
+                StepCreate(title="Cook rice", instruction="Cook using your usual method; confirm current conditions first.", duration_minutes=18, depends_on=[0], requires_physical_confirmation=True),
+                StepCreate(title="Rest rice", instruction="Let rice rest and check texture.", duration_minutes=5, depends_on=[1]),
+            ]),
+            DishCreate(name="Dal", steps=[
+                StepCreate(title="Rinse dal", instruction="Rinse the dal.", duration_minutes=2),
+                StepCreate(title="Pressure cook dal", instruction="Follow pressure cooker instructions; never open it while pressurized.", duration_minutes=20, depends_on=[0], requires_physical_confirmation=True),
+                StepCreate(title="Temper dal", instruction="Prepare tempering carefully and combine with dal.", duration_minutes=5, depends_on=[1]),
+            ]),
+            DishCreate(name="Aloo sabzi", steps=[
+                StepCreate(title="Chop potatoes", instruction="Wash and chop potatoes.", duration_minutes=8),
+                StepCreate(title="Sauté spices", instruction="Heat oil carefully and sauté spices.", duration_minutes=3, depends_on=[0], requires_physical_confirmation=True),
+                StepCreate(title="Cook potatoes", instruction="Cook until done; elapsed time alone is not proof.", duration_minutes=15, depends_on=[1], requires_physical_confirmation=True),
+            ]),
+        ],
+    )
+    return meal_status(db, create_meal(db, user_id, data, is_demo=True))
 
 
 @app.post("/api/v1/demo/reset")
