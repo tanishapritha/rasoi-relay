@@ -106,5 +106,15 @@ def get_household_preferences() -> list[dict[str, Any]]:
         return get_preferences(db, _user_id())
 
 
+@mcp.tool()
+def start_cooking_timer(meal_id: str, step_id: str, duration_minutes: int | None = None,
+                        physical_condition_confirmed: bool = False) -> dict[str, Any]:
+    """Start a persisted timer with an absolute deadline; sensitive steps require confirmation."""
+    from app.services.cooking import start_timer
+    with SessionLocal() as db:
+        return start_timer(db, get_meal(db, meal_id, _user_id()), step_id, duration_minutes,
+                           physical_condition_confirmed)
+
+
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
