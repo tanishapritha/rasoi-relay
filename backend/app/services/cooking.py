@@ -19,7 +19,7 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _meal_query(meal_id: str):
+def _meal_query(meal_id: str) -> Any:
     return select(Meal).where(Meal.id == meal_id).options(
         selectinload(Meal.dishes).selectinload(Dish.steps).selectinload(CookingStep.dependencies),
         selectinload(Meal.dishes).selectinload(Dish.steps).selectinload(CookingStep.timers),
