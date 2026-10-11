@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from app.db.base import Base
 from app.models import CookingEvent, StepStatus
 from app.schemas import DishCreate, MealCreate, StepCreate
-from app.services.cooking import complete_step, create_meal, get_meal, get_next_action, recover_meal, report_interruption
+from app.services.cooking import complete_step, create_meal, get_meal, get_next_action, meal_status, recover_meal, report_interruption
 
 
 @pytest.fixture()
@@ -39,6 +39,9 @@ def test_create_meal_and_select_eligible_action(db):
     meal = create_meal(db, "user-a", meal_payload())
     assert meal.name == "Dinner"
     assert get_next_action(db, meal)["action"]["title"] == "Wash rice"
+    status = meal_status(db, meal)
+    assert status["schedule"]["estimated_remaining_minutes"] == 18
+    assert "serving_feasible" in status["schedule"]
 
 
 def test_blocked_step_cannot_be_completed(db):
