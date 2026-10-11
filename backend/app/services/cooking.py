@@ -119,7 +119,7 @@ def complete_step(db: Session, meal: Meal, step_id: str, idempotency_key: str | 
     if idempotency_key:
         existing = db.scalar(select(CookingEvent).where(CookingEvent.idempotency_key == idempotency_key))
         if existing:
-            if existing.meal_id != meal.id:
+            if existing.meal_id != meal.id or existing.payload.get("step_id") != step_id:
                 raise HTTPException(status_code=409, detail={"code": "IDEMPOTENCY_KEY_REUSED", "message": "Key belongs to another operation."})
             return {"status": "already_processed", "meal_id": meal.id, "step_id": step_id}
     step = db.scalar(select(CookingStep).join(Dish).where(CookingStep.id == step_id, Dish.meal_id == meal.id))
