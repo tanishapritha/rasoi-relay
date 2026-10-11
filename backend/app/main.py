@@ -77,7 +77,7 @@ def post_complete(meal_id: str, step_id: str, data: CompleteStepRequest,
                   db: Session = Depends(get_db), user_id: str = Depends(current_user),
                   idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     meal = get_meal(db, meal_id, user_id)
-    return complete_step(db, meal, step_id, idempotency_key or data.idempotency_key)
+    return complete_step(db, meal, step_id, idempotency_key or data.idempotency_key, data.physical_condition_confirmed)
 
 
 @app.post("/api/v1/meals/{meal_id}/interruptions")
