@@ -193,7 +193,7 @@ class LaunchRequestHandler(AbstractRequestHandler):
     def handle(self, handler_input: HandlerInput) -> dict[str, Any]:
         return _response(
             handler_input,
-            "Welcome to Rasoi Relay. You can ask how dinner is going, what to do next, report an interruption, or start a cooking timer. Create your meal in the Rasoi Relay app first.",
+            "Welcome to Rasoi Relay. Say start a sample meal to begin, or create a meal in the Rasoi Relay app. You can ask how dinner is going, what to do next, report an interruption, or start a saved cooking timer.",
             "Try saying, what should I do next?",
         )
 
@@ -345,6 +345,8 @@ class ReportInterruptionIntentHandler(AbstractRequestHandler):
                 attributes.pop("pending_action", None)
                 attributes.pop("pending_complete_meal_id", None)
                 attributes.pop("pending_complete_step_id", None)
+                attributes.pop("confirmed_step_id", None)
+                attributes.pop("confirmed_step_meal_id", None)
                 attributes["pending_resume_meal_id"] = meal.id
                 attributes["pending_resume_needs_stove"] = True
                 _save_pending(handler_input, attributes)
@@ -417,6 +419,8 @@ class ConfirmStoveStateIntentHandler(AbstractRequestHandler):
                 resume_meal(db, meal, user_confirmed=True, confirmed_conditions={"stove_state": state})
                 attributes.pop("pending_resume_meal_id", None)
                 attributes.pop("pending_resume_needs_stove", None)
+                attributes.pop("confirmed_step_id", None)
+                attributes.pop("confirmed_step_meal_id", None)
                 _save_pending(handler_input, attributes)
                 return _response(handler_input, f"Thanks for checking. I've resumed {meal.name}. Ask what you should do next.")
         except HTTPException as exc:
@@ -469,6 +473,8 @@ class YesIntentHandler(AbstractRequestHandler):
                 resume_meal(db, meal, user_confirmed=True)
                 attributes.pop("pending_resume_meal_id", None)
                 attributes.pop("pending_resume_needs_stove", None)
+                attributes.pop("confirmed_step_id", None)
+                attributes.pop("confirmed_step_meal_id", None)
                 _save_pending(handler_input, attributes)
                 return _response(handler_input, f"You're back in. I've resumed {meal.name}. Ask what you should do next.")
         except HTTPException as exc:
@@ -588,7 +594,7 @@ class HelpIntentHandler(AbstractRequestHandler):
     def handle(self, handler_input: HandlerInput) -> dict[str, Any]:
         return _response(
             handler_input,
-            "You can ask how dinner is going, what to do next, report leaving the kitchen, ask to resume cooking, say you finished the next step, or set a saved Rasoi Relay timer.",
+            "You can start a sample meal, ask how dinner is going, ask what to do next, report leaving the kitchen, resume cooking after checking the stove, confirm physical conditions before a safety-sensitive step, say you finished the next step, or set a saved Rasoi Relay timer.",
             "Try saying, what should I do next?",
         )
 
