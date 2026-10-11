@@ -1,13 +1,17 @@
 import contextlib
+import logging
+import time
+import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.ai.provider import get_intent_provider
 from app.core.config import get_settings
+from app.core.logging import configure_logging
 from app.db.session import get_db, engine
 from app.models import Meal, MealStatus
 from app.mcp_server import mcp
@@ -18,6 +22,8 @@ from app.services.cooking import (
 )
 
 settings = get_settings()
+configure_logging(settings.log_level)
+logger = logging.getLogger("rasoi.request")
 mcp_asgi_app = mcp.streamable_http_app(streamable_http_path="/", json_response=True, stateless_http=True)
 
 
@@ -34,6 +40,24 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list,
                    allow_credentials=True, allow_methods=["GET", "POST", "PUT", "OPTIONS"],
                    allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Demo-User", "Mcp-Session-Id", "Mcp-Protocol-Version", "Last-Event-ID"],
                    expose_headers=["Mcp-Session-Id"])
+
+@app.middleware("http")
+async def request_logging(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception("request_failed", extra={"request_id": request_id, "method": request.method,
+                                                  "path": request.url.path,
+                                                  "duration_ms": round((time.perf_counter() - started) * 1000, 2)})
+        raise
+    response.headers["X-Request-ID"] = request_id
+    logger.info("request_completed", extra={"request_id": request_id, "method": request.method,
+                                             "path": request.url.path, "status_code": response.status_code,
+                                             "duration_ms": round((time.perf_counter() - started) * 1000, 2)})
+    return response
+
 
 
 def current_user(x_demo_user: str | None = Header(default=None, alias="X-Demo-User")) -> str:
