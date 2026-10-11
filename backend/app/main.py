@@ -10,10 +10,10 @@ from app.core.config import get_settings
 from app.db.session import get_db, engine
 from app.models import Meal
 from app.mcp_server import mcp
-from app.schemas import CompleteStepRequest, DishCreate, InterruptionCreate, MealCreate, PreferenceWrite, StepCreate
+from app.schemas import CompleteStepRequest, DishCreate, InterruptionCreate, MealCreate, PreferenceWrite, StepCreate, TimerStart
 from app.services.cooking import (
     complete_step, create_meal, get_meal, get_next_action, get_preferences,
-    meal_status, recover_meal, report_interruption, revise_plan, save_preference,
+    meal_status, recover_meal, report_interruption, revise_plan, save_preference, start_timer,
 )
 
 settings = get_settings()
@@ -91,6 +91,13 @@ def post_complete(meal_id: str, step_id: str, data: CompleteStepRequest,
                   idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     meal = get_meal(db, meal_id, user_id)
     return complete_step(db, meal, step_id, idempotency_key or data.idempotency_key, data.physical_condition_confirmed)
+
+
+@app.post("/api/v1/meals/{meal_id}/steps/{step_id}/timer", status_code=201)
+def post_timer(meal_id: str, step_id: str, data: TimerStart, db: Session = Depends(get_db),
+               user_id: str = Depends(current_user)) -> dict:
+    meal = get_meal(db, meal_id, user_id)
+    return start_timer(db, meal, step_id, data.duration_minutes)
 
 
 @app.post("/api/v1/meals/{meal_id}/interruptions")
