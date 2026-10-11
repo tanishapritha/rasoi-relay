@@ -50,6 +50,11 @@ class TimerStart(BaseModel):
     physical_condition_confirmed: bool = False
 
 
+class ResumeMealRequest(BaseModel):
+    user_confirmed: bool = False
+    confirmed_conditions: dict[str, str] = Field(default_factory=dict)
+
+
 class PhysicalConfirmation(BaseModel):
     condition: str = Field(min_length=1, max_length=100)
     value: str = Field(min_length=1, max_length=120)
