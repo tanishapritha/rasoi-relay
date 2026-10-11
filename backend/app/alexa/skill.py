@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from ask_sdk_core.dispatch_components import AbstractExceptionHandler, AbstractRequestHandler
@@ -15,8 +16,10 @@ from sqlalchemy.exc import IntegrityError
 
 from app.db.session import SessionLocal
 from app.models import ExternalIdentity, Meal, MealStatus, User
+from app.schemas import DishCreate, MealCreate, StepCreate
 from app.services.cooking import (
     complete_step,
+    create_meal,
     get_meal,
     get_next_action,
     meal_status,
@@ -173,6 +176,51 @@ class LaunchRequestHandler(AbstractRequestHandler):
             "Welcome to Rasoi Relay. You can ask how dinner is going, what to do next, report an interruption, or start a cooking timer. Create your meal in the Rasoi Relay app first.",
             "Try saying, what should I do next?",
         )
+
+
+class StartSampleMealIntentHandler(AbstractRequestHandler):
+    def can_handle(self, handler_input: HandlerInput) -> bool:
+        return is_intent_name("StartSampleMealIntent")(handler_input)
+
+    def handle(self, handler_input: HandlerInput) -> dict[str, Any]:
+        try:
+            with SessionLocal() as db:
+                user_id = _user_id(db, handler_input)
+                existing, error = _active_meal(db, user_id)
+                if error:
+                    if "couldn't find an active or paused meal" not in error:
+                        return _response(handler_input, error)
+                if existing is not None:
+                    return _response(handler_input, f"You already have a cooking session called {existing.name}. Ask what you should do next.")
+                data = MealCreate(
+                    name="Dal, rice and aloo sabzi",
+                    target_serving_at=datetime.now(timezone.utc) + timedelta(minutes=60),
+                    dishes=[
+                        DishCreate(name="Rice", steps=[
+                            StepCreate(title="Wash rice", instruction="Rinse rice until the water is clearer.", duration_minutes=3),
+                            StepCreate(title="Cook rice", instruction="Cook using your usual method after checking the current conditions.", duration_minutes=18, depends_on=[0], requires_physical_confirmation=True),
+                            StepCreate(title="Rest rice", instruction="Let rice rest and check its texture.", duration_minutes=5, depends_on=[1]),
+                        ]),
+                        DishCreate(name="Dal", steps=[
+                            StepCreate(title="Rinse dal", instruction="Rinse the dal.", duration_minutes=2),
+                            StepCreate(title="Pressure cook dal", instruction="Follow the pressure cooker's instructions. Never open it while pressurized.", duration_minutes=20, depends_on=[0], requires_physical_confirmation=True),
+                            StepCreate(title="Temper dal", instruction="Prepare the tempering carefully and combine with the dal.", duration_minutes=5, depends_on=[1]),
+                        ]),
+                        DishCreate(name="Aloo sabzi", steps=[
+                            StepCreate(title="Chop potatoes", instruction="Wash and chop the potatoes.", duration_minutes=8),
+                            StepCreate(title="Sauté spices", instruction="Check the cooking area before heating oil, then sauté the spices.", duration_minutes=3, depends_on=[0], requires_physical_confirmation=True),
+                            StepCreate(title="Cook potatoes", instruction="Cook until done and check texture; elapsed time alone is not proof.", duration_minutes=15, depends_on=[1], requires_physical_confirmation=True),
+                        ]),
+                    ],
+                )
+                meal = create_meal(db, user_id, data, source="alexa")
+                return _response(
+                    handler_input,
+                    f"I've started a sample cooking session for {meal.name}. I'll guide you through the steps, and I'll ask you to check physical conditions before safety-sensitive steps. Ask what you should do next.",
+                    "Ask, what should I do next?",
+                )
+        except HTTPException as exc:
+            return _response(handler_input, _http_error_speech(exc))
 
 
 class MealStatusIntentHandler(AbstractRequestHandler):
@@ -465,6 +513,7 @@ class SkillExceptionHandler(AbstractExceptionHandler):
 
 for request_handler in (
     LaunchRequestHandler(),
+    StartSampleMealIntentHandler(),
     MealStatusIntentHandler(),
     NextActionIntentHandler(),
     ReportInterruptionIntentHandler(),
