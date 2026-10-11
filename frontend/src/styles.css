@@ -4,3 +4,5 @@
 .step-actions{display:flex;align-items:center;gap:5px;flex-shrink:0}.timer-button{border:1px solid #e3d6c5;background:#fbf3e9;color:#93683f;border-radius:7px;padding:5px 7px;font-size:10px;font-weight:700}
 
 .resume-button{margin:0 0 8px;width:100%;background:#fffaf0;border-color:#e7cdb2;color:#875538}
+
+.assistant-title{flex:1}.speak-button{margin-left:auto;border:1px solid #e4e4d9;background:#fbfaf5}.mic-button.listening{background:#f8e1d8;color:#a65042;animation:pulse-listening 1.2s ease-in-out infinite}@keyframes pulse-listening{50%{box-shadow:0 0 0 4px #f8e1d8}}
