@@ -37,7 +37,7 @@ class InterruptionCreate(BaseModel):
 
 class CompleteStepRequest(BaseModel):
     idempotency_key: str | None = Field(default=None, max_length=160)
-    user_confirmed: bool = True
+    physical_condition_confirmed: bool = False
 
 
 class PhysicalConfirmation(BaseModel):
