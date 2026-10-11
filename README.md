@@ -8,10 +8,10 @@ Rasoi Relay focuses on persistent cooking context across multiple dishes, interr
 
 ## Current implementation status
 
-- **Implemented in repository:** SQLAlchemy domain models; initial Alembic migration; deterministic meal creation, dependency-aware next action, step completion, interruption recovery, plan revision, preference storage and absolute timer deadlines; FastAPI endpoints; official Python MCP SDK tool adapter; React dashboard; real browser MCP client calls for recovery and interruption; scoped demo load/reset; initial unit tests; CI and deployment scaffolding.
+- **Implemented in repository:** SQLAlchemy domain models; initial Alembic migration; deterministic meal creation, dependency-aware next action, step completion, interruption recovery, plan revision, preference storage, absolute timer deadlines and bounded household timing estimates; FastAPI endpoints; official Python MCP SDK tool adapter; React dashboard; real browser MCP client calls for recovery and interruption; scoped demo load/reset; initial unit tests; CI and deployment scaffolding.
 - **Not yet verified:** dependency installation, lockfile generation, local test execution, Alembic against PostgreSQL, browser build, MCP Inspector, deployed endpoints and latency.
 - **Not production-ready:** real authentication and MCP principal propagation are not implemented. Production mode rejects user API calls and MCP tools rather than accepting the demo identity. Do not deploy publicly for normal use until this is completed.
-- **Not implemented yet:** hosted AI provider integration, full intent parsing, browser voice, adaptive timing based on event history, frontend end-to-end tests and verified deployment.
+- **Not implemented yet:** hosted AI provider integration, richer intent handling, browser voice, frontend end-to-end tests and verified deployment.
 
 See `docs/build-log.md` for the current verification status.
 
@@ -84,6 +84,8 @@ npm run build
 Generate and commit `backend/uv.lock` and `frontend/package-lock.json` after installing dependencies locally. Until those lockfiles are committed, dependency installation is not fully reproducible and CI currently resolves package versions from the declared ranges.
 
 ## MCP tools
+
+The REST API also exposes a deterministic conversation endpoint at `POST /api/v1/conversation` and cooking issue reporting. Intent classification currently uses a rules-based English/Hinglish fallback; no hosted model provider is connected yet.
 
 The MCP adapter exposes `start_meal`, `get_meal_status`, `get_next_action`, `complete_cooking_step`, `report_interruption`, `recover_meal`, `report_cooking_issue`, `revise_meal_plan`, `save_household_preference`, `get_household_preferences`, and `start_cooking_timer`.
 
