@@ -20,6 +20,7 @@ export type Meal = {
   target_serving_at: string;
   dishes: Dish[];
   progress: { completed: number; total: number; fraction: number };
+  schedule: { estimated_remaining_minutes: number; estimated_finish_at: string; serving_feasible: boolean; method: string; remaining_minutes_by_dish: Record<string, number>; caveat: string };
   next_action: { action: { step_id: string; dish: string; title: string; instruction?: string; estimated_minutes?: number } | null; reason: string; clarification_required: boolean; question?: string };
   recent_events: { type: string; payload: Record<string, unknown>; created_at: string | null }[];
 };
