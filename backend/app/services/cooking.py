@@ -226,10 +226,15 @@ def meal_status(db: Session, meal: Meal) -> dict[str, Any]:
                               for e in sorted(meal.events, key=lambda event: event.created_at or _now(), reverse=True)[:10]]}
 
 
-def start_timer(db: Session, meal: Meal, step_id: str, duration_minutes: int | None = None) -> dict[str, Any]:
+def start_timer(db: Session, meal: Meal, step_id: str, duration_minutes: int | None = None,
+                physical_condition_confirmed: bool = False) -> dict[str, Any]:
     step = db.scalar(select(CookingStep).join(Dish).where(CookingStep.id == step_id, Dish.meal_id == meal.id))
     if step is None:
         raise HTTPException(status_code=404, detail={"code": "STEP_NOT_FOUND", "message": "Step not found in this meal."})
+    if not _is_ready(db, step):
+        raise HTTPException(status_code=409, detail={"code": "STEP_BLOCKED", "message": "Prerequisite steps are not complete."})
+    if step.requires_physical_confirmation and not physical_condition_confirmed:
+        raise HTTPException(status_code=409, detail={"code": "PHYSICAL_CONFIRMATION_REQUIRED", "message": "Confirm the current physical conditions before starting this timer."})
     duration = duration_minutes if duration_minutes is not None else step.duration_minutes
     if duration < 1 or duration > 360:
         raise HTTPException(status_code=422, detail={"code": "INVALID_TIMER_DURATION", "message": "Timer duration must be between 1 and 360 minutes."})
